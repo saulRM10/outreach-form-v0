@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #eef2f7;
+  color: theme("colors.ink");
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Never let the page scroll sideways on a phone. */
+body {
+  overflow-x: hidden;
+}
+
+/* Inputs at 16px+ so iOS Safari never auto-zooms on focus. */
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+/* Calm, consistent focus ring across every control. */
+.focus-ring:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(53, 169, 254, 0.35);
+  border-color: theme("colors.brand.primary");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
