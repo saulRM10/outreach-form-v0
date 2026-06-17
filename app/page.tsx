@@ -1,5 +1,6 @@
 import Link from "next/link";
 import OutreachForm from "@/components/OutreachForm";
+import { Settings } from "lucide-react";
 
 export default function Page() {
   return (
@@ -21,20 +22,7 @@ export default function Page() {
           aria-label="Defaults"
           className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-muted hover:bg-field hover:text-brand-secondary"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-            <path
-              d="M10 13a3 3 0 100-6 3 3 0 000 6z"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              fill="none"
-            />
-            <path
-              d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1L4.7 4.7"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Settings className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
         </Link>
       </header>
       <OutreachForm />
