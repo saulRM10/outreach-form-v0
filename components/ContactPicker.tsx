@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { Contact } from "@/lib/types";
 
 interface ContactPickerProps {
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
+  options: Contact[];
+  value: Contact | null;
+  onChange: (value: Contact | null) => void;
   loading?: boolean;
 }
 
 /**
  * Type-to-filter picker for contacts. Contacts are referenced constantly,
  * so this beats a native <select>: type a name or street, tap the match.
- * Supports keyboard (arrows / enter / esc) and large touch targets.
+ * Shows "Name - Address" for context but carries name + address separately.
  */
 export default function ContactPicker({
   options,
@@ -30,7 +31,7 @@ export default function ContactPicker({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter((o) => o.toLowerCase().includes(q));
+    return options.filter((o) => o.label.toLowerCase().includes(q));
   }, [options, query]);
 
   // Close when tapping outside.
@@ -46,7 +47,7 @@ export default function ContactPicker({
 
   useEffect(() => setActive(0), [query, open]);
 
-  function select(option: string) {
+  function select(option: Contact) {
     onChange(option);
     setQuery("");
     setOpen(false);
@@ -71,11 +72,11 @@ export default function ContactPicker({
     }
   }
 
-  const display = open ? query : value;
+  const display = open ? query : value?.label ?? "";
   const placeholder = loading
     ? "Loading contacts…"
     : value
-    ? value
+    ? value.label
     : "Search name or address";
 
   return (
@@ -105,7 +106,7 @@ export default function ContactPicker({
             type="button"
             aria-label="Clear contact"
             onClick={() => {
-              onChange("");
+              onChange(null);
               setQuery("");
               inputRef.current?.focus();
               setOpen(true);
@@ -136,10 +137,10 @@ export default function ContactPicker({
             </li>
           ) : (
             filtered.map((option, i) => {
-              const selected = option === value;
+              const selected = option.label === value?.label;
               return (
                 <li
-                  key={option}
+                  key={option.label}
                   role="option"
                   aria-selected={selected}
                   onMouseEnter={() => setActive(i)}
@@ -148,12 +149,17 @@ export default function ContactPicker({
                     select(option);
                   }}
                   className={[
-                    "flex min-h-[44px] cursor-pointer items-center px-3.5 py-2 text-[15px] leading-tight",
+                    "min-h-[44px] cursor-pointer px-3.5 py-2 text-[15px] leading-tight",
                     i === active ? "bg-brand-primary/10" : "",
                     selected ? "font-medium text-brand-secondary" : "text-ink",
                   ].join(" ")}
                 >
-                  {option}
+                  <span>{option.name}</span>
+                  {option.address && (
+                    <span className="block text-[13px] text-muted">
+                      {option.address}
+                    </span>
+                  )}
                 </li>
               );
             })

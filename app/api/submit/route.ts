@@ -9,12 +9,15 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body." },
+      { status: 400 },
+    );
   }
 
   // Minimal server-side guards on the required selections.
   const required: Array<[keyof SubmissionPayload, string]> = [
-    ["contact", "Contact"],
+    ["contactName", "Contact"],
     ["campaignName", "Campaign Name"],
     ["outreachLead", "Outreach Lead"],
     ["outreachMethod", "Outreach Method"],
@@ -25,7 +28,7 @@ export async function POST(request: Request) {
   if (missing.length > 0) {
     return NextResponse.json(
       { error: `Missing: ${missing.map(([, label]) => label).join(", ")}.` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -38,16 +41,17 @@ export async function POST(request: Request) {
 
   // Column order must match Form_Submissions schema (1..10).
   const row = [
-    activityName,            // 1  Outreach Activity Name
-    body.contact,            // 2  Contact
-    body.campaignName,       // 3  Campaign Name
-    body.outreachLead,       // 4  Outreach Lead
-    body.outreachMethod,     // 5  Outreach Method
-    body.dateOfOutreach,     // 6  Date of Outreach
-    body.response,           // 7  Response
-    body.notes ?? "",        // 8  Notes (If any)
-    followUp,                // 9  Follow-up Required?
-    followUpDate,            // 10 Schedule date for Follow up
+    activityName, // A  Outreach Activity Name
+    body.contactName, // B  Contact (name only)
+    body.campaignName, // C  Campaign Name
+    body.outreachLead, // D  Outreach Lead
+    body.outreachMethod, // E  Outreach Method
+    body.dateOfOutreach, // F  Date of Outreach
+    body.response, // G  Response
+    body.notes ?? "", // H  Notes (If any)
+    followUp, // I  Follow-up Required?
+    followUpDate, // J  Schedule date for Follow up
+    body.streetAddress ?? "", // K  Street Address
   ];
 
   try {
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${SHEETS.submissions}!A:J`,
+      range: `${SHEETS.submissions}!A:K`,
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
@@ -66,8 +70,11 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("[/api/submit]", err);
     return NextResponse.json(
-      { error: "Could not save to the sheet. Your entry was not lost — try again." },
-      { status: 502 }
+      {
+        error:
+          "Could not save to the sheet. Your entry was not lost — try again.",
+      },
+      { status: 502 },
     );
   }
 }

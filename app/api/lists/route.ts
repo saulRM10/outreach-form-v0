@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSheetsClient, getSheetId, SHEETS } from "@/lib/google";
-import type { ListData } from "@/lib/types";
+import type { Contact, ListData } from "@/lib/types";
 
 // Always fetch fresh so admin edits in the sheet show up quickly (no SSG).
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ export async function GET() {
     const addresses = vr[1]?.values ?? [];
 
     // Concatenate "Name - Address" row by row. Address may be missing for some.
-    const contacts: string[] = [];
+    const contacts: Contact[] = [];
     const seenContacts = new Set<string>();
     for (let i = 0; i < names.length; i++) {
       const name = (names[i]?.[0] ?? "").trim();
@@ -54,7 +54,7 @@ export async function GET() {
       const label = address ? `${name} - ${address}` : name;
       if (!seenContacts.has(label)) {
         seenContacts.add(label);
-        contacts.push(label);
+        contacts.push({ name, address, label });
       }
     }
 
@@ -73,7 +73,7 @@ export async function GET() {
     console.error("[/api/lists]", err);
     return NextResponse.json(
       { error: "Could not load dropdown values from the sheet." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

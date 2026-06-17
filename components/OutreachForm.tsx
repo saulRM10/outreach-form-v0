@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { ListData, SubmissionPayload } from "@/lib/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Contact, ListData, SubmissionPayload } from "@/lib/types";
+import { loadDefaults, type Defaults } from "@/lib/defaults";
 import ContactPicker from "./ContactPicker";
 import Toast, { type ToastKind } from "./Toast";
 
@@ -13,7 +14,6 @@ function todayMMDDYY(): string {
   const yy = String(d.getFullYear()).slice(-2);
   return `${mm}/${dd}/${yy}`;
 }
-// native <input type=date> uses YYYY-MM-DD; convert both ways.
 function isoToMMDDYY(iso: string): string {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
@@ -29,7 +29,7 @@ function mmddyyToISO(v: string): string {
 const FOLLOWUP_OPTIONS = ["No", "Yes"] as const;
 
 interface FormState {
-  contact: string;
+  contact: Contact | null;
   campaignName: string;
   outreachLead: string;
   outreachMethod: string;
@@ -40,11 +40,11 @@ interface FormState {
   followUpDate: string; // MM/DD/YY
 }
 
-function blankState(): FormState {
+function blankState(defaults: Defaults): FormState {
   return {
-    contact: "",
-    campaignName: "",
-    outreachLead: "",
+    contact: null,
+    campaignName: defaults.campaignName,
+    outreachLead: defaults.outreachLead,
     outreachMethod: "",
     dateOfOutreach: todayMMDDYY(),
     response: "",
@@ -54,14 +54,29 @@ function blankState(): FormState {
   };
 }
 
+const EMPTY_DEFAULTS: Defaults = { campaignName: "", outreachLead: "" };
+
 export default function OutreachForm() {
   const [lists, setLists] = useState<ListData | null>(null);
   const [listError, setListError] = useState(false);
-  const [form, setForm] = useState<FormState>(blankState);
+  const [form, setForm] = useState<FormState>(() => blankState(EMPTY_DEFAULTS));
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(
     null
   );
+  // Remember defaults so a reset after submit keeps them applied.
+  const defaultsRef = useRef<Defaults>(EMPTY_DEFAULTS);
+
+  // Apply per-device defaults once on mount (localStorage is client-only).
+  useEffect(() => {
+    const d = loadDefaults();
+    defaultsRef.current = d;
+    setForm((f) => ({
+      ...f,
+      campaignName: d.campaignName || f.campaignName,
+      outreachLead: d.outreachLead || f.outreachLead,
+    }));
+  }, []);
 
   const loadLists = useCallback(async () => {
     setListError(false);
@@ -89,7 +104,8 @@ export default function OutreachForm() {
     setToast(null);
 
     const payload: SubmissionPayload = {
-      contact: form.contact,
+      contactName: form.contact?.name ?? "",
+      streetAddress: form.contact?.address ?? "",
       campaignName: form.campaignName,
       outreachLead: form.outreachLead,
       outreachMethod: form.outreachMethod,
@@ -109,12 +125,11 @@ export default function OutreachForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // Keep everything the user typed; just report the problem.
         setToast({ kind: "error", message: data.error || "Could not save. Try again." });
         return;
       }
-      // Reset, but keep the date defaulting to today for fast repeat entries.
-      setForm(blankState());
+      // Reset, but keep defaults + today's date for fast repeat entries.
+      setForm(blankState(defaultsRef.current));
       setToast({ kind: "success", message: "Saved to the team sheet." });
     } catch {
       setToast({
