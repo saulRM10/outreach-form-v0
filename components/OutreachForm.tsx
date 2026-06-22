@@ -28,6 +28,8 @@ function mmddyyToISO(v: string): string {
 
 const FOLLOWUP_OPTIONS = ["No", "Yes"] as const;
 
+const MAX_BUTTONS = 4;
+
 interface FormState {
   contact: Contact | null;
   campaignName: string;
@@ -54,16 +56,22 @@ function blankState(defaults: Defaults): FormState {
   };
 }
 
-const EMPTY_DEFAULTS: Defaults = { campaignName: "", outreachLead: "" };
+const EMPTY_DEFAULTS: Defaults = {
+  campaignName: "",
+  outreachLead: "",
+  methodButtons: [],
+};
 
 export default function OutreachForm() {
   const [lists, setLists] = useState<ListData | null>(null);
   const [listError, setListError] = useState(false);
   const [form, setForm] = useState<FormState>(() => blankState(EMPTY_DEFAULTS));
+  const [methodButtons, setMethodButtons] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(
-    null
-  );
+  const [toast, setToast] = useState<{
+    kind: ToastKind;
+    message: string;
+  } | null>(null);
   // Remember defaults so a reset after submit keeps them applied.
   const defaultsRef = useRef<Defaults>(EMPTY_DEFAULTS);
 
@@ -71,6 +79,7 @@ export default function OutreachForm() {
   useEffect(() => {
     const d = loadDefaults();
     defaultsRef.current = d;
+    setMethodButtons(d.methodButtons);
     setForm((f) => ({
       ...f,
       campaignName: d.campaignName || f.campaignName,
@@ -125,7 +134,10 @@ export default function OutreachForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setToast({ kind: "error", message: data.error || "Could not save. Try again." });
+        setToast({
+          kind: "error",
+          message: data.error || "Could not save. Try again.",
+        });
         return;
       }
       // Reset, but keep defaults + today's date for fast repeat entries.
@@ -194,25 +206,30 @@ export default function OutreachForm() {
               loading={loading}
             />
           </Field>
-          <Field label="Method" htmlFor="method">
-            <Select
-              id="method"
-              value={form.outreachMethod}
-              onChange={(v) => set("outreachMethod", v)}
-              options={lists?.methods}
-              loading={loading}
-            />
-          </Field>
-          <Field label="Response" htmlFor="response">
-            <Select
-              id="response"
-              value={form.response}
-              onChange={(v) => set("response", v)}
-              options={lists?.responses}
-              loading={loading}
-            />
-          </Field>
         </div>
+
+        {/* Method — quick-tap buttons (configurable in Settings), with an
+            "Other" dropdown for any method that isn't a quick button. */}
+        <Field label="Method" htmlFor="method">
+          <MethodPicker
+            value={form.outreachMethod}
+            onChange={(v) => set("outreachMethod", v)}
+            all={lists?.methods ?? []}
+            quick={methodButtons}
+            loading={loading}
+          />
+        </Field>
+
+        {/* Response — one-tap buttons (3 options fit inline). */}
+        <Field label="Response" htmlFor="response">
+          <ChoiceField
+            id="response"
+            value={form.response}
+            onChange={(v) => set("response", v)}
+            options={lists?.responses}
+            loading={loading}
+          />
+        </Field>
 
         {/* Date of outreach with Today quick-action */}
         <Field label="Date of outreach" htmlFor="date">
@@ -221,7 +238,9 @@ export default function OutreachForm() {
               id="date"
               type="date"
               value={mmddyyToISO(form.dateOfOutreach)}
-              onChange={(e) => set("dateOfOutreach", isoToMMDDYY(e.target.value))}
+              onChange={(e) =>
+                set("dateOfOutreach", isoToMMDDYY(e.target.value))
+              }
               className="min-h-[48px] flex-1 rounded-xl border border-line bg-field px-3.5 text-ink"
             />
             <button
@@ -330,9 +349,188 @@ function Field({
         className="mb-1.5 block text-sm font-medium text-ink"
       >
         {label}
-        {optional && <span className="ml-1 font-normal text-muted">· optional</span>}
+        {optional && (
+          <span className="ml-1 font-normal text-muted">· optional</span>
+        )}
       </label>
       {children}
+    </div>
+  );
+}
+
+/**
+ * A row of one-tap option buttons. Tapping a selected button clears it, so a
+ * mis-tap is easy to undo in the field.
+ */
+function ChoiceButtons({
+  options,
+  value,
+  onChange,
+  columns,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  columns: number;
+}) {
+  return (
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {options.map((opt) => {
+        const selected = value === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(selected ? "" : opt)}
+            className={[
+              "min-h-[48px] rounded-xl border px-2 text-sm font-medium leading-tight transition-colors",
+              selected
+                ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                : "border-line bg-field text-muted hover:bg-white",
+            ].join(" ")}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ButtonsSkeleton() {
+  return (
+    <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
+  );
+}
+
+/**
+ * Renders options as buttons when there are few (<= MAX_BUTTONS), otherwise
+ * falls back to the native dropdown. Used for Response.
+ */
+function ChoiceField({
+  id,
+  value,
+  onChange,
+  options,
+  loading,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  options?: string[];
+  loading?: boolean;
+}) {
+  if (loading) return <ButtonsSkeleton />;
+  const opts = options ?? [];
+  if (opts.length === 0 || opts.length > MAX_BUTTONS) {
+    return (
+      <Select
+        id={id}
+        value={value}
+        onChange={onChange}
+        options={opts}
+        loading={loading}
+      />
+    );
+  }
+  return (
+    <ChoiceButtons
+      options={opts}
+      value={value}
+      onChange={onChange}
+      columns={Math.min(opts.length, 3)}
+    />
+  );
+}
+
+/**
+ * Method picker. Shows the user's configured "quick" methods as buttons; any
+ * remaining methods stay reachable through an "Other" dropdown so nothing is
+ * lost. With no configuration, behaves like ChoiceField (buttons when few,
+ * dropdown when many).
+ */
+function MethodPicker({
+  value,
+  onChange,
+  all,
+  quick,
+  loading,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  all: string[];
+  quick: string[];
+  loading?: boolean;
+}) {
+  if (loading) return <ButtonsSkeleton />;
+  if (all.length === 0) {
+    return (
+      <Select id="method" value={value} onChange={onChange} options={all} />
+    );
+  }
+
+  // Quick buttons, kept in the sheet's order and limited to methods that exist.
+  const quickButtons = all.filter((m) => quick.includes(m));
+
+  // No quick config: fall back to the generic few-buttons-or-dropdown rule.
+  if (quickButtons.length === 0) {
+    if (all.length > MAX_BUTTONS) {
+      return (
+        <Select id="method" value={value} onChange={onChange} options={all} />
+      );
+    }
+    return (
+      <ChoiceButtons
+        options={all}
+        value={value}
+        onChange={onChange}
+        columns={Math.min(all.length, 2)}
+      />
+    );
+  }
+
+  const leftover = all.filter((m) => !quickButtons.includes(m));
+  const valueIsOther = !!value && !quickButtons.includes(value);
+
+  return (
+    <div className="space-y-2">
+      <ChoiceButtons
+        options={quickButtons}
+        value={value}
+        onChange={onChange}
+        columns={Math.min(quickButtons.length, 2)}
+      />
+      {leftover.length > 0 && (
+        <select
+          id="method"
+          aria-label="Other method"
+          value={valueIsOther ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={[
+            "min-h-[44px] w-full appearance-none rounded-xl border px-3.5 text-sm",
+            valueIsOther
+              ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+              : "border-line bg-field text-muted",
+          ].join(" ")}
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' stroke='%235b6478' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 14px center",
+          }}
+        >
+          <option value="">Other method…</option>
+          {leftover.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

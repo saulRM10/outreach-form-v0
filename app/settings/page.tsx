@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [listError, setListError] = useState(false);
   const [campaignName, setCampaignName] = useState("");
   const [outreachLead, setOutreachLead] = useState("");
+  const [methodButtons, setMethodButtons] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
 
   const loadLists = useCallback(async () => {
@@ -28,12 +29,19 @@ export default function SettingsPage() {
     const d = loadDefaults();
     setCampaignName(d.campaignName);
     setOutreachLead(d.outreachLead);
+    setMethodButtons(d.methodButtons);
   }, [loadLists]);
 
   const loading = !lists && !listError;
 
+  function toggleMethod(m: string) {
+    setMethodButtons((prev) =>
+      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
+    );
+  }
+
   function save() {
-    saveDefaults({ campaignName, outreachLead });
+    saveDefaults({ campaignName, outreachLead, methodButtons });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -42,6 +50,7 @@ export default function SettingsPage() {
     clearDefaults();
     setCampaignName("");
     setOutreachLead("");
+    setMethodButtons([]);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -54,13 +63,22 @@ export default function SettingsPage() {
           className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-secondary hover:underline"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M10 3L5 8l5 5"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           Back to form
         </Link>
         <div className="flex items-center gap-2.5">
           <span className="inline-block h-7 w-1.5 rounded-full bg-brand-primary" />
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">Defaults</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            Defaults
+          </h1>
         </div>
         <p className="mt-1.5 pl-4 text-sm text-muted">
           Pre-set the values you pick most. The form opens with these filled in.
@@ -83,7 +101,10 @@ export default function SettingsPage() {
         )}
 
         <div className="mb-4">
-          <label htmlFor="d-campaign" className="mb-1.5 block text-sm font-medium text-ink">
+          <label
+            htmlFor="d-campaign"
+            className="mb-1.5 block text-sm font-medium text-ink"
+          >
             Default campaign
           </label>
           <Select
@@ -96,7 +117,10 @@ export default function SettingsPage() {
         </div>
 
         <div className="mb-4">
-          <label htmlFor="d-lead" className="mb-1.5 block text-sm font-medium text-ink">
+          <label
+            htmlFor="d-lead"
+            className="mb-1.5 block text-sm font-medium text-ink"
+          >
             Default outreach lead
           </label>
           <Select
@@ -108,8 +132,67 @@ export default function SettingsPage() {
           />
         </div>
 
+        {/* Quick method buttons */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-medium text-ink">
+            Quick method buttons
+          </label>
+          <p className="mb-2.5 text-xs text-muted">
+            Pick the methods you use most. They appear as one-tap buttons in the
+            form instead of a dropdown. Anything you don’t pick stays available
+            under “Other.”
+          </p>
+
+          {loading ? (
+            <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
+          ) : (lists?.methods?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted">No methods found in the sheet.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(lists?.methods ?? []).map((m) => {
+                const checked = methodButtons.includes(m);
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() => toggleMethod(m)}
+                    className={[
+                      "flex min-h-[48px] items-center justify-between gap-2 rounded-xl border px-3.5 text-left text-sm font-medium transition-colors",
+                      checked
+                        ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                        : "border-line bg-field text-muted hover:bg-white",
+                    ].join(" ")}
+                  >
+                    <span className="leading-tight">{m}</span>
+                    {checked && (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                        className="shrink-0"
+                      >
+                        <path
+                          d="M3 8.5l3.5 3.5L13 5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <p className="mb-4 text-xs text-muted">
-          Leave a field on “No default” to keep it blank in the form.
+          Leave a field on “No default” to keep it blank in the form. Response
+          options always show as buttons in the form automatically.
         </p>
 
         <div className="flex gap-2">

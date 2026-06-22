@@ -4,20 +4,30 @@
 export interface Defaults {
   campaignName: string;
   outreachLead: string;
+  methodButtons: string[];
 }
 
 const KEY = "outreach_defaults_v1";
-const EMPTY: Defaults = { campaignName: "", outreachLead: "" };
+const EMPTY: Defaults = {
+  campaignName: "",
+  outreachLead: "",
+  methodButtons: [],
+};
 
 export function loadDefaults(): Defaults {
   if (typeof window === "undefined") return { ...EMPTY };
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return { ...EMPTY };
-    const p = JSON.parse(raw);
+    const p = JSON.parse(raw) as Partial<Defaults>;
     return {
-      campaignName: typeof p.campaignName === "string" ? p.campaignName : "",
-      outreachLead: typeof p.outreachLead === "string" ? p.outreachLead : "",
+      campaignName: p.campaignName ?? "",
+      outreachLead: p.outreachLead ?? "",
+      methodButtons: Array.isArray(p.methodButtons)
+        ? p.methodButtons.filter(
+            (m): m is string => typeof m === "string" && m.length > 0,
+          )
+        : [],
     };
   } catch {
     return { ...EMPTY };
