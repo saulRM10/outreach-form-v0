@@ -13,9 +13,6 @@ export default function Page() {
               Log outreach
             </h1>
           </div>
-          <p className="mt-1.5 pl-4 text-sm text-muted">
-            One contact, one entry. Saves straight to the team sheet.
-          </p>
         </div>
         <Link
           href="/settings"
