@@ -30,8 +30,17 @@ const FOLLOWUP_OPTIONS = ["No", "Yes"] as const;
 
 const MAX_BUTTONS = 4;
 
+const GOAL_MAX = 140;
+
+function composeNotes(goal: string, notes: string): string {
+  const g = goal.trim();
+  const n = notes.trim();
+  if (!g) return n;
+  return n ? `Goal: ${g}\n${n}` : `Goal: ${g}`;
+}
 interface FormState {
   contact: Contact | null;
+  outreachGoal: string;
   campaignName: string;
   outreachLead: string;
   outreachMethod: string;
@@ -45,6 +54,7 @@ interface FormState {
 function blankState(defaults: Defaults): FormState {
   return {
     contact: null,
+    outreachGoal: defaults.outreachGoal,
     campaignName: defaults.campaignName,
     outreachLead: defaults.outreachLead,
     outreachMethod: "",
@@ -60,6 +70,7 @@ const EMPTY_DEFAULTS: Defaults = {
   campaignName: "",
   outreachLead: "",
   methodButtons: [],
+  outreachGoal: "",
 };
 
 export default function OutreachForm() {
@@ -68,6 +79,7 @@ export default function OutreachForm() {
   const [form, setForm] = useState<FormState>(() => blankState(EMPTY_DEFAULTS));
   const [methodButtons, setMethodButtons] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [goalError, setGoalError] = useState(false);
   const [toast, setToast] = useState<{
     kind: ToastKind;
     message: string;
@@ -82,6 +94,7 @@ export default function OutreachForm() {
     setMethodButtons(d.methodButtons);
     setForm((f) => ({
       ...f,
+      outreachGoal: d.outreachGoal || f.outreachGoal,
       campaignName: d.campaignName || f.campaignName,
       outreachLead: d.outreachLead || f.outreachLead,
     }));
@@ -112,6 +125,17 @@ export default function OutreachForm() {
     if (submitting) return;
     setToast(null);
 
+    if (!form.outreachGoal.trim()) {
+      setGoalError(true);
+      setToast({
+        kind: "error",
+        message: "Add the goal of the outreach before saving.",
+      });
+      document.getElementById("outreach-goal")?.focus();
+      return;
+    }
+    setGoalError(false);
+
     const payload: SubmissionPayload = {
       contactName: form.contact?.name ?? "",
       streetAddress: form.contact?.address ?? "",
@@ -120,7 +144,7 @@ export default function OutreachForm() {
       outreachMethod: form.outreachMethod,
       dateOfOutreach: form.dateOfOutreach,
       response: form.response,
-      notes: form.notes,
+      notes: composeNotes(form.outreachGoal, form.notes),
       followUpRequired: form.followUp === "Yes",
       followUpDate: form.followUp === "Yes" ? form.followUpDate : "",
     };
@@ -141,7 +165,11 @@ export default function OutreachForm() {
         return;
       }
       // Reset, but keep defaults + today's date for fast repeat entries.
-      setForm(blankState(defaultsRef.current));
+      const carriedGoal = form.outreachGoal;
+      setForm({
+        ...blankState(defaultsRef.current),
+        outreachGoal: carriedGoal,
+      });
       setToast({ kind: "success", message: "Saved to the team sheet." });
     } catch {
       setToast({
@@ -176,6 +204,31 @@ export default function OutreachForm() {
             </button>
           </div>
         )}
+
+        {/* Outreach goal — lands in the Salesforce note. Can be pre-set in
+            Settings before heading out, and survives each save so repeat
+            entries at the same event stay one-tap fast. */}
+        <Field label="Outreach goal" htmlFor="outreach-goal">
+          <input
+            id="outreach-goal"
+            type="text"
+            value={form.outreachGoal}
+            maxLength={GOAL_MAX}
+            onChange={(e) => {
+              set("outreachGoal", e.target.value);
+              if (goalError) setGoalError(false);
+            }}
+            placeholder="Drop off flyer for community Plática, July 25"
+            className={[
+              "min-h-[48px] w-full rounded-xl border bg-field px-3.5 text-ink placeholder:text-muted/70",
+              goalError ? "border-red-400" : "border-line",
+            ].join(" ")}
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            Why you reached out. Saved to the note on every entry — set it once
+            in Settings and it stays filled in.
+          </p>
+        </Field>
 
         {/* Contact — the most-used field, given the most room */}
         <Field label="Contact" htmlFor="contact">

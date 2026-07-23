@@ -8,6 +8,7 @@ import { loadDefaults, saveDefaults, clearDefaults } from "@/lib/defaults";
 export default function SettingsPage() {
   const [lists, setLists] = useState<ListData | null>(null);
   const [listError, setListError] = useState(false);
+  const [outreachGoal, setOutreachGoal] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [outreachLead, setOutreachLead] = useState("");
   const [methodButtons, setMethodButtons] = useState<string[]>([]);
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadLists();
     const d = loadDefaults();
+    setOutreachGoal(d.outreachGoal);
     setCampaignName(d.campaignName);
     setOutreachLead(d.outreachLead);
     setMethodButtons(d.methodButtons);
@@ -41,13 +43,14 @@ export default function SettingsPage() {
   }
 
   function save() {
-    saveDefaults({ campaignName, outreachLead, methodButtons });
+    saveDefaults({ outreachGoal, campaignName, outreachLead, methodButtons });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
 
   function clearAll() {
     clearDefaults();
+    setOutreachGoal("");
     setCampaignName("");
     setOutreachLead("");
     setMethodButtons([]);
@@ -99,6 +102,28 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
+
+        <div className="mb-4">
+          <label
+            htmlFor="d-outreach-goal"
+            className="mb-1.5 block text-sm font-medium text-ink"
+          >
+            Default outreach goal
+          </label>
+          <p className="mb-2.5 text-xs text-muted">
+            Set this before you head out. Every entry saves it into the note, so
+            an audit can see why the outreach happened.
+          </p>
+          <input
+            id="d-outreach-goal"
+            type="text"
+            value={outreachGoal}
+            maxLength={140}
+            onChange={(e) => setOutreachGoal(e.target.value)}
+            placeholder="Drop off flyer for community Plática, July 25"
+            className="min-h-[48px] w-full rounded-xl border border-line bg-field px-3.5 text-ink placeholder:text-muted/70"
+          />
+        </div>
 
         <div className="mb-4">
           <label

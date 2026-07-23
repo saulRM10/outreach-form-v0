@@ -5,6 +5,7 @@ export interface Defaults {
   campaignName: string;
   outreachLead: string;
   methodButtons: string[];
+  outreachGoal: string;
 }
 
 const KEY = "outreach_defaults_v1";
@@ -12,6 +13,7 @@ const EMPTY: Defaults = {
   campaignName: "",
   outreachLead: "",
   methodButtons: [],
+  outreachGoal: "",
 };
 
 export function loadDefaults(): Defaults {
@@ -20,6 +22,7 @@ export function loadDefaults(): Defaults {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return { ...EMPTY };
     const p = JSON.parse(raw) as Partial<Defaults>;
+    const parsed = JSON.parse(raw) as Partial<Defaults>;
     return {
       campaignName: p.campaignName ?? "",
       outreachLead: p.outreachLead ?? "",
@@ -28,6 +31,8 @@ export function loadDefaults(): Defaults {
             (m): m is string => typeof m === "string" && m.length > 0,
           )
         : [],
+      outreachGoal:
+        typeof parsed.outreachGoal === "string" ? parsed.outreachGoal : "",
     };
   } catch {
     return { ...EMPTY };
