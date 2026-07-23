@@ -17,7 +17,7 @@ export default function Page() {
         <Link
           href="/settings"
           aria-label="Defaults"
-          className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-muted hover:bg-field hover:text-brand-secondary"
+          className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#B5D4F4] text-[#0C447C] hover:bg-[#85B7EB]"
         >
           <Settings className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
         </Link>
