@@ -95,6 +95,7 @@ export default function OutreachForm() {
   const [methodButtons, setMethodButtons] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [goalError, setGoalError] = useState(false);
+  const [followUpDateError, setFollowUpDateError] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
   const [stale, setStale] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
@@ -199,6 +200,17 @@ export default function OutreachForm() {
       return;
     }
     setGoalError(false);
+
+    if (form.followUp === "Yes" && !form.followUpDate.trim()) {
+      setFollowUpDateError(true);
+      setToast({
+        kind: "error",
+        message: "Pick a follow-up date, or set follow-up to No.",
+      });
+      document.getElementById("followup-date")?.focus();
+      return;
+    }
+    setFollowUpDateError(false);
 
     const payload: SubmissionPayload = {
       contactName: form.contact?.name ?? "",
@@ -381,7 +393,13 @@ export default function OutreachForm() {
                     key={opt}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => set("followUp", opt)}
+                    onClick={() => {
+                      set("followUp", opt);
+                      if (opt === "No") {
+                        set("followUpDate", "");
+                        setFollowUpDateError(false);
+                      }
+                    }}
                     className={[
                       "min-h-[48px] rounded-xl border font-medium transition-colors",
                       selected
@@ -411,13 +429,22 @@ export default function OutreachForm() {
 
         {/* Only shown when follow-up is Yes; hidden field submits blank otherwise */}
         {form.followUp === "Yes" && (
-          <Field label="Follow-up date" htmlFor="followup-date">
+          <Field label="Follow-up date" htmlFor="followup-date" required>
             <input
               id="followup-date"
               type="date"
+              required
+              aria-required="true"
+              aria-invalid={followUpDateError || undefined}
               value={mmddyyToISO(form.followUpDate)}
-              onChange={(e) => set("followUpDate", isoToMMDDYY(e.target.value))}
-              className="min-h-[48px] w-full rounded-xl border border-line bg-field px-3.5 text-ink"
+              onChange={(e) => {
+                set("followUpDate", isoToMMDDYY(e.target.value));
+                if (followUpDateError) setFollowUpDateError(false);
+              }}
+              className={[
+                "min-h-[48px] w-full rounded-xl border bg-field px-3.5 text-ink",
+                followUpDateError ? "border-red-400" : "border-line",
+              ].join(" ")}
             />
           </Field>
         )}
@@ -454,12 +481,6 @@ export default function OutreachForm() {
 
 // --- small presentational helpers ---
 
-/**
- * Collapsed, this shows the session context without letting it be edited by a
- * stray tap. A wrong goal is only an imprecise audit note, but a wrong campaign
- * misfiles the record in Salesforce and someone has to unpick it later — which
- * is why the stale state offers a deliberate choice rather than a dismissal.
- */
 function SessionStrip({
   open,
   stale,

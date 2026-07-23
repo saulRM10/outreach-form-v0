@@ -32,6 +32,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (body.followUpRequired && !String(body.followUpDate ?? "").trim()) {
+    return NextResponse.json(
+      { error: "Missing: Schedule date for Follow up." },
+      { status: 400 },
+    );
+  }
+
   // Outreach Activity Name is automated from the outreach date (MM/DD/YY).
   const activityName = body.dateOfOutreach;
 
