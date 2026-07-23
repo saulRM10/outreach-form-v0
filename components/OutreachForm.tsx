@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Contact, ListData, SubmissionPayload } from "@/lib/types";
-import { loadDefaults, type Defaults } from "@/lib/defaults";
+import { loadDefaults, saveDefaults, type Defaults } from "@/lib/defaults";
 import ContactPicker from "./ContactPicker";
 import Toast, { type ToastKind } from "./Toast";
 
@@ -26,10 +26,22 @@ function mmddyyToISO(v: string): string {
   return `20${yy}-${m}-${d}`;
 }
 
+/**
+ * Staleness is measured in calendar days, not elapsed hours
+ */
+function isStaleDay(iso: string | undefined): boolean {
+  if (!iso) return false;
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return false;
+  return then.toDateString() !== new Date().toDateString();
+}
+
 const FOLLOWUP_OPTIONS = ["No", "Yes"] as const;
 
 const MAX_BUTTONS = 4;
 
+// The Salesforce object has no goal field of its own, so the outreach goal is
+// prefixed onto the note that gets written there.
 const GOAL_MAX = 140;
 
 function composeNotes(goal: string, notes: string): string {
@@ -38,6 +50,7 @@ function composeNotes(goal: string, notes: string): string {
   if (!g) return n;
   return n ? `Goal: ${g}\n${n}` : `Goal: ${g}`;
 }
+
 interface FormState {
   contact: Contact | null;
   outreachGoal: string;
@@ -67,10 +80,12 @@ function blankState(defaults: Defaults): FormState {
 }
 
 const EMPTY_DEFAULTS: Defaults = {
+  outreachGoal: "",
   campaignName: "",
   outreachLead: "",
   methodButtons: [],
-  outreachGoal: "",
+  setAt: "",
+  confirmedAt: "",
 };
 
 export default function OutreachForm() {
@@ -80,6 +95,9 @@ export default function OutreachForm() {
   const [methodButtons, setMethodButtons] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [goalError, setGoalError] = useState(false);
+  const [stripOpen, setStripOpen] = useState(false);
+  const [stale, setStale] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const [toast, setToast] = useState<{
     kind: ToastKind;
     message: string;
@@ -98,7 +116,49 @@ export default function OutreachForm() {
       campaignName: d.campaignName || f.campaignName,
       outreachLead: d.outreachLead || f.outreachLead,
     }));
+    // Nothing set yet: open the strip so the first entry can't be filed blind.
+    if (!d.outreachGoal && !d.campaignName && !d.outreachLead)
+      setStripOpen(true);
   }, []);
+
+  /**
+   * No polling. The check is event-driven, so nothing runs while the form sits
+   * idle in a pocket all day. Mounting alone isn't enough: field staff open the
+   * form Monday morning and never close the tab, so the component may not
+   * remount for days. `visibilitychange` catches app-switching and screen wake;
+   * `pageshow` catches iOS Safari restoring from bfcache, where
+   * `visibilitychange` sometimes doesn't fire.
+   */
+  useEffect(() => {
+    const check = () => {
+      const d = defaultsRef.current;
+      const hasContext = !!(d.outreachGoal || d.campaignName || d.outreachLead);
+      const next = hasContext && isStaleDay(d.confirmedAt || d.setAt);
+      setStale(next);
+      if (next) setStripOpen(true);
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("pageshow", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("pageshow", check);
+    };
+  }, []);
+
+  /** Strip edits are session-level, so they write through to device defaults. */
+  function persistContext(next: Partial<Defaults>, confirmOnly = false) {
+    const now = new Date().toISOString();
+    const merged: Defaults = {
+      ...defaultsRef.current,
+      ...next,
+      setAt: confirmOnly ? defaultsRef.current.setAt || now : now,
+      confirmedAt: now,
+    };
+    defaultsRef.current = merged;
+    saveDefaults(merged);
+    setStale(false);
+  }
 
   const loadLists = useCallback(async () => {
     setListError(false);
@@ -127,11 +187,15 @@ export default function OutreachForm() {
 
     if (!form.outreachGoal.trim()) {
       setGoalError(true);
+      setStripOpen(true);
       setToast({
         kind: "error",
-        message: "Add the goal of the outreach before saving.",
+        message: "Add the outreach goal before saving.",
       });
-      document.getElementById("outreach-goal")?.focus();
+      // The input only exists while the strip is expanded, so wait a frame.
+      requestAnimationFrame(() =>
+        document.getElementById("outreach-goal")?.focus(),
+      );
       return;
     }
     setGoalError(false);
@@ -164,12 +228,10 @@ export default function OutreachForm() {
         });
         return;
       }
-      // Reset, but keep defaults + today's date for fast repeat entries.
-      const carriedGoal = form.outreachGoal;
-      setForm({
-        ...blankState(defaultsRef.current),
-        outreachGoal: carriedGoal,
-      });
+      // Reset, but keep today's date and the session context for fast repeat
+      // entries. defaultsRef holds goal/campaign/lead, kept current by the strip.
+      setForm(blankState(defaultsRef.current));
+      setDateOpen(false);
       setToast({ kind: "success", message: "Saved to the team sheet." });
     } catch {
       setToast({
@@ -205,30 +267,39 @@ export default function OutreachForm() {
           </div>
         )}
 
-        {/* Outreach goal — lands in the Salesforce note. Can be pre-set in
-            Settings before heading out, and survives each save so repeat
-            entries at the same event stay one-tap fast. */}
-        <Field label="Outreach goal" htmlFor="outreach-goal">
-          <input
-            id="outreach-goal"
-            type="text"
-            value={form.outreachGoal}
-            maxLength={GOAL_MAX}
-            onChange={(e) => {
-              set("outreachGoal", e.target.value);
-              if (goalError) setGoalError(false);
-            }}
-            placeholder="Drop off flyer for community Plática, July 25"
-            className={[
-              "min-h-[48px] w-full rounded-xl border bg-field px-3.5 text-ink placeholder:text-muted/70",
-              goalError ? "border-red-400" : "border-line",
-            ].join(" ")}
-          />
-          <p className="mt-1.5 text-xs text-muted">
-            Why you reached out. Saved to the note on every entry — set it once
-            in Settings and it stays filled in.
-          </p>
-        </Field>
+        {/* Session context — goal, campaign and lead all stay fixed for a
+            whole session and describe the outing, not the contact. Grouping
+            them keeps everything below this strip about one person. */}
+        <SessionStrip
+          open={stripOpen}
+          stale={stale}
+          goal={form.outreachGoal}
+          campaign={form.campaignName}
+          lead={form.outreachLead}
+          goalError={goalError}
+          campaigns={lists?.campaigns}
+          leads={lists?.leads}
+          loading={loading}
+          onToggle={() => setStripOpen((o) => !o)}
+          onGoal={(v) => {
+            set("outreachGoal", v);
+            if (goalError) setGoalError(false);
+          }}
+          onCampaign={(v) => set("campaignName", v)}
+          onLead={(v) => set("outreachLead", v)}
+          onDone={() => {
+            persistContext({
+              outreachGoal: form.outreachGoal,
+              campaignName: form.campaignName,
+              outreachLead: form.outreachLead,
+            });
+            setStripOpen(false);
+          }}
+          onConfirm={() => {
+            persistContext({}, true);
+            setStripOpen(false);
+          }}
+        />
 
         {/* Contact — the most-used field, given the most room */}
         <Field label="Contact" htmlFor="contact">
@@ -239,27 +310,6 @@ export default function OutreachForm() {
             loading={loading}
           />
         </Field>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Campaign" htmlFor="campaign">
-            <Select
-              id="campaign"
-              value={form.campaignName}
-              onChange={(v) => set("campaignName", v)}
-              options={lists?.campaigns}
-              loading={loading}
-            />
-          </Field>
-          <Field label="Outreach lead" htmlFor="lead">
-            <Select
-              id="lead"
-              value={form.outreachLead}
-              onChange={(v) => set("outreachLead", v)}
-              options={lists?.leads}
-              loading={loading}
-            />
-          </Field>
-        </div>
 
         {/* Method — quick-tap buttons (configurable in Settings), with an
             "Other" dropdown for any method that isn't a quick button. */}
@@ -284,69 +334,79 @@ export default function OutreachForm() {
           />
         </Field>
 
-        {/* Date of outreach with Today quick-action */}
-        <Field label="Date of outreach" htmlFor="date">
-          <div className="flex gap-2">
-            <input
-              id="date"
-              type="date"
-              value={mmddyyToISO(form.dateOfOutreach)}
-              onChange={(e) =>
-                set("dateOfOutreach", isoToMMDDYY(e.target.value))
-              }
-              className="min-h-[48px] flex-1 rounded-xl border border-line bg-field px-3.5 text-ink"
-            />
-            <button
-              type="button"
-              aria-pressed={isToday}
-              onClick={() => set("dateOfOutreach", todayMMDDYY())}
-              className={[
-                "min-h-[48px] shrink-0 rounded-xl px-4 font-medium transition-colors",
-                isToday
-                  ? "bg-brand-accent text-white"
-                  : "border border-line bg-white text-brand-secondary hover:bg-field",
-              ].join(" ")}
+        {/* Date and follow-up are both narrow, so they pair without cramping.
+            Date collapses to a single Today button — in the field the date is
+            almost always today, so a full picker rarely earns its height. */}
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label
+              htmlFor="date"
+              className="mb-1.5 block text-sm font-medium text-ink"
             >
-              Today
-            </button>
+              Date
+            </label>
+            {dateOpen || !isToday ? (
+              <input
+                id="date"
+                type="date"
+                autoFocus={dateOpen}
+                value={mmddyyToISO(form.dateOfOutreach)}
+                onChange={(e) =>
+                  set("dateOfOutreach", isoToMMDDYY(e.target.value))
+                }
+                onBlur={() => setDateOpen(false)}
+                className="min-h-[48px] w-full rounded-xl border border-line bg-field px-3 text-ink"
+              />
+            ) : (
+              <button
+                id="date"
+                type="button"
+                onClick={() => setDateOpen(true)}
+                className="min-h-[48px] w-full rounded-xl bg-brand-accent px-3 font-medium text-white"
+              >
+                Today
+              </button>
+            )}
           </div>
-        </Field>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink">
+              Follow-up
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {FOLLOWUP_OPTIONS.map((opt) => {
+                const selected = form.followUp === opt;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => set("followUp", opt)}
+                    className={[
+                      "min-h-[48px] rounded-xl border font-medium transition-colors",
+                      selected
+                        ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                        : "border-line bg-field text-muted hover:bg-white",
+                    ].join(" ")}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         {/* Notes */}
         <Field label="Notes" htmlFor="notes" optional>
           <textarea
             id="notes"
-            rows={3}
+            rows={2}
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
             placeholder="Anything worth remembering"
             className="w-full resize-y rounded-xl border border-line bg-field px-3.5 py-3 text-ink placeholder:text-muted/70"
           />
-        </Field>
-
-        {/* Follow-up (Yes/No -> TRUE/FALSE) */}
-        <Field label="Follow-up needed?" htmlFor="followup">
-          <div className="grid grid-cols-2 gap-2">
-            {FOLLOWUP_OPTIONS.map((opt) => {
-              const selected = form.followUp === opt;
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => set("followUp", opt)}
-                  className={[
-                    "min-h-[48px] rounded-xl border font-medium transition-colors",
-                    selected
-                      ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
-                      : "border-line bg-field text-muted hover:bg-white",
-                  ].join(" ")}
-                >
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
         </Field>
 
         {/* Only shown when follow-up is Yes; hidden field submits blank otherwise */}
@@ -362,13 +422,23 @@ export default function OutreachForm() {
           </Field>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting || loading}
-          className="mt-2 flex min-h-[52px] w-full items-center justify-center rounded-xl bg-brand-primary text-[17px] font-semibold text-white transition-opacity disabled:opacity-60"
+        {/* Pinned so a repeat entry never needs a scroll to the end. The
+            negative margins let it span the card's padding; the safe-area
+            padding keeps it clear of the iPhone home indicator. */}
+        <div
+          className="sticky bottom-0 -mx-4 -mb-4 border-t border-line bg-white/95 px-4 pt-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5"
+          style={{
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+          }}
         >
-          {submitting ? "Saving…" : "Save entry"}
-        </button>
+          <button
+            type="submit"
+            disabled={submitting || loading}
+            className="flex min-h-[52px] w-full items-center justify-center rounded-xl bg-brand-primary text-[17px] font-semibold text-white transition-opacity disabled:opacity-60"
+          >
+            {submitting ? "Saving…" : "Save entry"}
+          </button>
+        </div>
       </form>
 
       {toast && (
@@ -383,6 +453,203 @@ export default function OutreachForm() {
 }
 
 // --- small presentational helpers ---
+
+/**
+ * Collapsed, this shows the session context without letting it be edited by a
+ * stray tap. A wrong goal is only an imprecise audit note, but a wrong campaign
+ * misfiles the record in Salesforce and someone has to unpick it later — which
+ * is why the stale state offers a deliberate choice rather than a dismissal.
+ */
+function SessionStrip({
+  open,
+  stale,
+  goal,
+  campaign,
+  lead,
+  goalError,
+  campaigns,
+  leads,
+  loading,
+  onToggle,
+  onGoal,
+  onCampaign,
+  onLead,
+  onDone,
+  onConfirm,
+}: {
+  open: boolean;
+  stale: boolean;
+  goal: string;
+  campaign: string;
+  lead: string;
+  goalError: boolean;
+  campaigns?: string[];
+  leads?: string[];
+  loading?: boolean;
+  onToggle: () => void;
+  onGoal: (v: string) => void;
+  onCampaign: (v: string) => void;
+  onLead: (v: string) => void;
+  onDone: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={false}
+        className="mb-4 flex w-full items-center justify-between gap-3 rounded-xl bg-brand-primary/10 px-3.5 py-2.5 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-sm text-brand-secondary">
+            {goal || "No outreach goal set"}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-brand-secondary/75">
+            {[campaign, lead].filter(Boolean).join(" · ") || "No campaign set"}
+          </span>
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+          className="shrink-0 text-brand-secondary"
+        >
+          <path
+            d="M4 6l4 4 4-4"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={[
+        "mb-4 rounded-xl px-3.5 py-3",
+        stale ? "border border-amber-300 bg-amber-50" : "bg-brand-primary/10",
+      ].join(" ")}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span
+          className={[
+            "text-xs font-medium",
+            stale ? "text-amber-700" : "text-brand-secondary",
+          ].join(" ")}
+        >
+          {stale ? "Last set on an earlier day" : "This session"}
+        </span>
+        {!stale && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded
+            aria-label="Collapse session context"
+            className="text-brand-secondary"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M4 10l4-4 4 4"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      <label
+        htmlFor="outreach-goal"
+        className="mb-1 block text-xs font-medium text-ink"
+      >
+        Outreach goal
+      </label>
+      <input
+        id="outreach-goal"
+        type="text"
+        value={goal}
+        maxLength={GOAL_MAX}
+        onChange={(e) => onGoal(e.target.value)}
+        placeholder="Drop off flyer, Plática Jul 25"
+        className={[
+          "min-h-[44px] w-full rounded-lg border bg-white px-3 text-sm text-ink placeholder:text-muted/70",
+          goalError ? "border-red-400" : "border-line",
+        ].join(" ")}
+      />
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <div>
+          <label
+            htmlFor="campaign"
+            className="mb-1 block text-xs font-medium text-ink"
+          >
+            Campaign
+          </label>
+          <Select
+            id="campaign"
+            value={campaign}
+            onChange={onCampaign}
+            options={campaigns}
+            loading={loading}
+            compact
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="lead"
+            className="mb-1 block text-xs font-medium text-ink"
+          >
+            Lead
+          </label>
+          <Select
+            id="lead"
+            value={lead}
+            onChange={onLead}
+            options={leads}
+            loading={loading}
+            compact
+          />
+        </div>
+      </div>
+
+      {stale ? (
+        <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="min-h-[44px] rounded-lg border border-line bg-white text-sm font-medium text-ink"
+          >
+            Still right
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            className="min-h-[44px] rounded-lg bg-brand-primary text-sm font-semibold text-white"
+          >
+            Update
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onDone}
+          className="mt-2.5 min-h-[44px] w-full rounded-lg bg-brand-primary text-sm font-semibold text-white"
+        >
+          Done
+        </button>
+      )}
+    </div>
+  );
+}
 
 function Field({
   label,
@@ -594,12 +861,14 @@ function Select({
   onChange,
   options,
   loading,
+  compact,
 }: {
   id: string;
   value: string;
   onChange: (v: string) => void;
   options?: string[];
   loading?: boolean;
+  compact?: boolean;
 }) {
   return (
     <select
@@ -607,7 +876,12 @@ function Select({
       value={value}
       disabled={loading}
       onChange={(e) => onChange(e.target.value)}
-      className="min-h-[48px] w-full appearance-none rounded-xl border border-line bg-field px-3.5 text-ink disabled:opacity-60"
+      className={[
+        "w-full appearance-none border disabled:opacity-60",
+        compact
+          ? "min-h-[44px] rounded-lg border-line bg-white px-3 pr-8 text-sm text-ink"
+          : "min-h-[48px] rounded-xl border-line bg-field px-3.5 text-ink",
+      ].join(" ")}
       style={{
         backgroundImage:
           "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' stroke='%235b6478' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",

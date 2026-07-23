@@ -43,7 +43,15 @@ export default function SettingsPage() {
   }
 
   function save() {
-    saveDefaults({ outreachGoal, campaignName, outreachLead, methodButtons });
+    const now = new Date().toISOString();
+    saveDefaults({
+      outreachGoal,
+      campaignName,
+      outreachLead,
+      methodButtons,
+      setAt: now,
+      confirmedAt: now,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -112,7 +120,8 @@ export default function SettingsPage() {
           </label>
           <p className="mb-2.5 text-xs text-muted">
             Set this before you head out. Every entry saves it into the note, so
-            an audit can see why the outreach happened.
+            an audit can see why the outreach happened. The form warns you if
+            it’s still set from an earlier day.
           </p>
           <input
             id="d-outreach-goal"
@@ -216,8 +225,9 @@ export default function SettingsPage() {
         </div>
 
         <p className="mb-4 text-xs text-muted">
-          Leave a field on “No default” to keep it blank in the form. Response
-          options always show as buttons in the form automatically.
+          Leave a field on “No default” to keep it blank in the form. The goal
+          can still be edited per entry. Response options always show as buttons
+          in the form automatically.
         </p>
 
         <div className="flex gap-2">
