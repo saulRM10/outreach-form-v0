@@ -121,14 +121,6 @@ export default function OutreachForm() {
       setStripOpen(true);
   }, []);
 
-  /**
-   * No polling. The check is event-driven, so nothing runs while the form sits
-   * idle in a pocket all day. Mounting alone isn't enough: field staff open the
-   * form Monday morning and never close the tab, so the component may not
-   * remount for days. `visibilitychange` catches app-switching and screen wake;
-   * `pageshow` catches iOS Safari restoring from bfcache, where
-   * `visibilitychange` sometimes doesn't fire.
-   */
   useEffect(() => {
     const check = () => {
       const d = defaultsRef.current;
