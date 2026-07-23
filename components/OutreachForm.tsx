@@ -27,7 +27,7 @@ function mmddyyToISO(v: string): string {
 }
 
 /**
- * Staleness is measured in calendar days, not elapsed hours
+ * Staleness is measured in calendar days
  */
 function isStaleDay(iso: string | undefined): boolean {
   if (!iso) return false;
@@ -121,6 +121,14 @@ export default function OutreachForm() {
       setStripOpen(true);
   }, []);
 
+  /**
+   * No polling. The check is event-driven, so nothing runs while the form sits
+   * idle in a pocket all day. Mounting alone isn't enough: field staff open the
+   * form Monday morning and never close the tab, so the component may not
+   * remount for days. `visibilitychange` catches app-switching and screen wake;
+   * `pageshow` catches iOS Safari restoring from bfcache, where
+   * `visibilitychange` sometimes doesn't fire.
+   */
   useEffect(() => {
     const check = () => {
       const d = defaultsRef.current;
@@ -294,7 +302,7 @@ export default function OutreachForm() {
         />
 
         {/* Contact — the most-used field, given the most room */}
-        <Field label="Contact" htmlFor="contact">
+        <Field label="Contact" htmlFor="contact" required>
           <ContactPicker
             options={lists?.contacts ?? []}
             value={form.contact}
@@ -305,7 +313,7 @@ export default function OutreachForm() {
 
         {/* Method — quick-tap buttons (configurable in Settings), with an
             "Other" dropdown for any method that isn't a quick button. */}
-        <Field label="Method" htmlFor="method">
+        <Field label="Method" htmlFor="method" required>
           <MethodPicker
             value={form.outreachMethod}
             onChange={(v) => set("outreachMethod", v)}
@@ -316,7 +324,7 @@ export default function OutreachForm() {
         </Field>
 
         {/* Response — one-tap buttons (3 options fit inline). */}
-        <Field label="Response" htmlFor="response">
+        <Field label="Response" htmlFor="response" required>
           <ChoiceField
             id="response"
             value={form.response}
@@ -326,9 +334,6 @@ export default function OutreachForm() {
           />
         </Field>
 
-        {/* Date and follow-up are both narrow, so they pair without cramping.
-            Date collapses to a single Today button — in the field the date is
-            almost always today, so a full picker rarely earns its height. */}
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
             <label
@@ -336,11 +341,14 @@ export default function OutreachForm() {
               className="mb-1.5 block text-sm font-medium text-ink"
             >
               Date
+              <RequiredMark />
             </label>
             {dateOpen || !isToday ? (
               <input
                 id="date"
                 type="date"
+                required
+                aria-required="true"
                 autoFocus={dateOpen}
                 value={mmddyyToISO(form.dateOfOutreach)}
                 onChange={(e) =>
@@ -390,7 +398,7 @@ export default function OutreachForm() {
         </div>
 
         {/* Notes */}
-        <Field label="Notes" htmlFor="notes" optional>
+        <Field label="Notes" htmlFor="notes">
           <textarea
             id="notes"
             rows={2}
@@ -564,10 +572,13 @@ function SessionStrip({
         className="mb-1 block text-xs font-medium text-ink"
       >
         Outreach goal
+        <RequiredMark />
       </label>
       <input
         id="outreach-goal"
         type="text"
+        required
+        aria-required="true"
         value={goal}
         maxLength={GOAL_MAX}
         onChange={(e) => onGoal(e.target.value)}
@@ -585,6 +596,7 @@ function SessionStrip({
             className="mb-1 block text-xs font-medium text-ink"
           >
             Campaign
+            <RequiredMark />
           </label>
           <Select
             id="campaign"
@@ -593,6 +605,7 @@ function SessionStrip({
             options={campaigns}
             loading={loading}
             compact
+            required
           />
         </div>
         <div>
@@ -601,6 +614,7 @@ function SessionStrip({
             className="mb-1 block text-xs font-medium text-ink"
           >
             Lead
+            <RequiredMark />
           </label>
           <Select
             id="lead"
@@ -609,6 +623,7 @@ function SessionStrip({
             options={leads}
             loading={loading}
             compact
+            required
           />
         </div>
       </div>
@@ -646,12 +661,12 @@ function SessionStrip({
 function Field({
   label,
   htmlFor,
-  optional,
+  required,
   children,
 }: {
   label: string;
   htmlFor: string;
-  optional?: boolean;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -661,12 +676,24 @@ function Field({
         className="mb-1.5 block text-sm font-medium text-ink"
       >
         {label}
-        {optional && (
-          <span className="ml-1 font-normal text-muted">· optional</span>
-        )}
+        {required && <RequiredMark />}
       </label>
       {children}
     </div>
+  );
+}
+
+/**
+ * The asterisk is decorative
+ */
+function RequiredMark() {
+  return (
+    <>
+      <span aria-hidden="true" className="ml-0.5 text-red-500">
+        *
+      </span>
+      <span className="sr-only"> (required)</span>
+    </>
   );
 }
 
@@ -854,6 +881,7 @@ function Select({
   options,
   loading,
   compact,
+  required,
 }: {
   id: string;
   value: string;
@@ -861,12 +889,15 @@ function Select({
   options?: string[];
   loading?: boolean;
   compact?: boolean;
+  required?: boolean;
 }) {
   return (
     <select
       id={id}
       value={value}
       disabled={loading}
+      required={required}
+      aria-required={required || undefined}
       onChange={(e) => onChange(e.target.value)}
       className={[
         "w-full appearance-none border disabled:opacity-60",
