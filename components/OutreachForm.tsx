@@ -5,6 +5,17 @@ import type { Contact, ListData, SubmissionPayload } from "@/lib/types";
 import { loadDefaults, saveDefaults, type Defaults } from "@/lib/defaults";
 import ContactPicker from "./ContactPicker";
 import Toast, { type ToastKind } from "./Toast";
+import {
+  MessageSquare,
+  Phone,
+  Users,
+  Video,
+  Mailbox,
+  MoreHorizontal,
+  HelpCircle,
+  AtSign,
+  type LucideIcon,
+} from "lucide-react";
 
 // --- date helpers (MM/DD/YY) ---
 function todayMMDDYY(): string {
@@ -1039,11 +1050,18 @@ function ChoiceField({
   );
 }
 
+const METHOD_ICONS: Record<string, LucideIcon> = {
+  Text: MessageSquare,
+  "Phone Call": Phone,
+  "In-Person": Users,
+  "Virtual Meeting": Video,
+  Email: AtSign,
+  Mailers: Mailbox,
+};
+
 /**
- * Method picker. Shows the user's configured "quick" methods as buttons; any
- * remaining methods stay reachable through an "Other" dropdown so nothing is
- * lost. With no configuration, behaves like ChoiceField (buttons when few,
- * dropdown when many).
+ * Method picker. Shows configured "quick" methods as compact icon buttons
+ * arranged 3 per row. Includes an "Other" icon button when under 6 options.
  */
 function MethodPicker({
   value,
@@ -1058,6 +1076,8 @@ function MethodPicker({
   quick: string[];
   loading?: boolean;
 }) {
+  const [showOtherSelect, setShowOtherSelect] = useState(false);
+
   if (loading) return <ButtonsSkeleton />;
   if (all.length === 0) {
     return (
@@ -1065,64 +1085,95 @@ function MethodPicker({
     );
   }
 
-  // Quick buttons, kept in the sheet's order and limited to methods that exist.
+  // Quick buttons, limited to methods that exist
   const quickButtons = all.filter((m) => quick.includes(m));
+  const effectiveQuick =
+    quickButtons.length > 0 ? quickButtons : all.slice(0, 6);
 
-  // No quick config: fall back to the generic few-buttons-or-dropdown rule.
-  if (quickButtons.length === 0) {
-    if (all.length > MAX_BUTTONS) {
-      return (
-        <Select id="method" value={value} onChange={onChange} options={all} />
-      );
-    }
-    return (
-      <ChoiceButtons
-        options={all}
-        value={value}
-        onChange={onChange}
-        columns={Math.min(all.length, 2)}
-      />
-    );
-  }
+  const leftover = all.filter((m) => !effectiveQuick.includes(m));
+  const valueIsOther = !!value && !effectiveQuick.includes(value);
 
-  const leftover = all.filter((m) => !quickButtons.includes(m));
-  const valueIsOther = !!value && !quickButtons.includes(value);
+  // Show "Other" icon button if fewer than 6 methods, or if leftover methods exist
+  const shouldShowOtherButton =
+    effectiveQuick.length < 6 || leftover.length > 0;
 
   return (
     <div className="space-y-2">
-      <ChoiceButtons
-        options={quickButtons}
-        value={value}
-        onChange={onChange}
-        columns={Math.min(quickButtons.length, 2)}
-      />
-      {leftover.length > 0 && (
-        <select
-          id="method"
-          aria-label="Other method"
-          value={valueIsOther ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
-          className={[
-            "min-h-[44px] w-full appearance-none rounded-xl border px-3.5 text-sm",
-            valueIsOther
-              ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
-              : "border-line bg-field text-muted",
-          ].join(" ")}
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' stroke='%235b6478' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 14px center",
-          }}
-        >
-          <option value="">Other method…</option>
-          {leftover.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      )}
+      <div className="grid grid-cols-3 gap-1.5">
+        {effectiveQuick.map((method) => {
+          const Icon = METHOD_ICONS[method] || HelpCircle;
+          const selected = value === method;
+
+          return (
+            <button
+              key={method}
+              type="button"
+              title={method}
+              aria-label={method}
+              aria-pressed={selected}
+              onClick={() => {
+                onChange(selected ? "" : method);
+                setShowOtherSelect(false);
+              }}
+              className={[
+                "flex min-h-[40px] items-center justify-center rounded-xl border p-2 transition-colors",
+                selected
+                  ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                  : "border-line bg-field text-muted hover:bg-white",
+              ].join(" ")}
+            >
+              <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+            </button>
+          );
+        })}
+
+        {shouldShowOtherButton && (
+          <button
+            type="button"
+            title="Other method"
+            aria-label="Other method"
+            aria-pressed={valueIsOther || showOtherSelect}
+            onClick={() => setShowOtherSelect((prev) => !prev)}
+            className={[
+              "flex min-h-[40px] items-center justify-center rounded-xl border p-2 transition-colors",
+              valueIsOther || showOtherSelect
+                ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                : "border-line bg-field text-muted hover:bg-white",
+            ].join(" ")}
+          >
+            <MoreHorizontal className="h-5 w-5 shrink-0" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
+      {(showOtherSelect || valueIsOther) &&
+        (leftover.length > 0 || effectiveQuick.length < all.length) && (
+          <select
+            id="method"
+            aria-label="Other method"
+            value={valueIsOther ? value : ""}
+            onChange={(e) => onChange(e.target.value)}
+            className={[
+              "min-h-[40px] w-full appearance-none rounded-xl border px-3 text-sm transition-colors",
+              valueIsOther
+                ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                : "border-line bg-field text-muted",
+            ].join(" ")}
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' stroke='%235b6478' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 14px center",
+            }}
+          >
+            <option value="">Other method…</option>
+            {(leftover.length > 0 ? leftover : all).map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        )}
     </div>
   );
 }

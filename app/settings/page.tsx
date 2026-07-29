@@ -4,6 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { ListData } from "@/lib/types";
 import { loadDefaults, saveDefaults, clearDefaults } from "@/lib/defaults";
+import {
+  MessageSquare,
+  Phone,
+  Users,
+  Video,
+  AtSign,
+  Mailbox,
+  HelpCircle,
+  type LucideIcon,
+} from "lucide-react";
+
+const METHOD_ICONS: Record<string, LucideIcon> = {
+  Text: MessageSquare,
+  "Phone Call": Phone,
+  "In-Person": Users,
+  "Virtual Meeting": Video,
+  Email: AtSign,
+  Mailers: Mailbox,
+};
 
 export default function SettingsPage() {
   const [lists, setLists] = useState<ListData | null>(null);
@@ -221,6 +240,8 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(lists?.methods ?? []).map((m) => {
                 const checked = methodButtons.includes(m);
+                const Icon = METHOD_ICONS[m] || HelpCircle;
+
                 return (
                   <button
                     key={m}
@@ -234,7 +255,11 @@ export default function SettingsPage() {
                         : "border-line bg-field text-muted hover:bg-white",
                     ].join(" ")}
                   >
-                    <span className="leading-tight">{m}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="leading-tight truncate">{m}</span>
+                    </div>
+
                     {checked && (
                       <svg
                         width="16"
