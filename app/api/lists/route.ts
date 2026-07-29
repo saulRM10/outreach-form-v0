@@ -27,13 +27,15 @@ export async function GET() {
 
     // Independent column ranges => columns of different lengths are fine.
     const ranges = [
-      `${SHEETS.lists}!A2:A`, // Contact Names
-      `${SHEETS.lists}!B2:B`, // Contact Addresses
-      `${SHEETS.lists}!C2:C`, // Campaigns
-      `${SHEETS.lists}!D2:D`, // Leads
-      `${SHEETS.lists}!E2:E`, // Methods
-      `${SHEETS.lists}!F2:F`, // Responses
-      `${SHEETS.lists}!G2:G`, // SAFER Compliance Outreach categories
+      `${SHEETS.lists}!A2:A`, // Contact ID
+      `${SHEETS.lists}!B2:B`, // Contact Names
+      `${SHEETS.lists}!C2:C`, // Contact Addresses
+      `${SHEETS.lists}!D2:D`, // Campaigns
+      `${SHEETS.lists}!E2:E`, // Leads
+      `${SHEETS.lists}!F2:F`, // Methods
+      `${SHEETS.lists}!G2:G`, // Responses
+      `${SHEETS.lists}!H2:H`, // SAFER Compliance categories
+      `${SHEETS.lists}!I2:I`, // Other staff (preset names)
     ];
 
     const { data } = await sheets.spreadsheets.values.batchGet({
@@ -42,8 +44,9 @@ export async function GET() {
     });
 
     const vr = data.valueRanges ?? [];
-    const names = vr[0]?.values ?? [];
-    const addresses = vr[1]?.values ?? [];
+    const ids = vr[0]?.values ?? []; // column A — Contact ID
+    const names = vr[1]?.values ?? []; // column B — Contact Names
+    const addresses = vr[2]?.values ?? []; // column C — Contact Addresses
 
     // Concatenate "Name - Address" row by row. Address may be missing for some.
     const contacts: Contact[] = [];
@@ -51,21 +54,23 @@ export async function GET() {
     for (let i = 0; i < names.length; i++) {
       const name = (names[i]?.[0] ?? "").trim();
       if (!name) continue;
+      const id = (ids[i]?.[0] ?? "").trim();
       const address = (addresses[i]?.[0] ?? "").trim();
       const label = address ? `${name} - ${address}` : name;
       if (!seenContacts.has(label)) {
         seenContacts.add(label);
-        contacts.push({ name, address, label });
+        contacts.push({ id, name, address, label });
       }
     }
 
     const payload: ListData = {
       contacts,
-      campaigns: clean(vr[2]?.values),
-      leads: clean(vr[3]?.values),
-      methods: clean(vr[4]?.values),
-      responses: clean(vr[5]?.values),
-      saferCategories: clean(vr[6]?.values),
+      campaigns: clean(vr[3]?.values),
+      leads: clean(vr[4]?.values),
+      methods: clean(vr[5]?.values),
+      responses: clean(vr[6]?.values),
+      saferCategories: clean(vr[7]?.values),
+      staff: clean(vr[8]?.values),
     };
 
     return NextResponse.json(payload, {

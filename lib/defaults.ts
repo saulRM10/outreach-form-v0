@@ -9,6 +9,7 @@ export interface Defaults {
   saferEnabled: boolean; // switch for the SAFER field
   saferAvailable: string[]; // Outreach categories
   saferDefault: string[]; // Outreach categories
+  staffDefault: string[]; // <- add: "other staff" pre-checked on a new entry
   setAt: string;
   confirmedAt: string;
 }
@@ -24,6 +25,7 @@ export function loadDefaults(): Defaults {
     saferEnabled: false,
     saferAvailable: [],
     saferDefault: [],
+    staffDefault: [],
     setAt: "",
     confirmedAt: "",
   };
@@ -48,6 +50,9 @@ export function loadDefaults(): Defaults {
         : [],
       saferDefault: Array.isArray(parsed.saferDefault)
         ? parsed.saferDefault
+        : [],
+      staffDefault: Array.isArray(parsed.staffDefault)
+        ? parsed.staffDefault
         : [],
       setAt: typeof parsed.setAt === "string" ? parsed.setAt : "",
       confirmedAt:

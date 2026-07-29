@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [saferEnabled, setSaferEnabled] = useState(false);
   const [saferAvailable, setSaferAvailable] = useState<string[]>([]);
   const [saferDefault, setSaferDefault] = useState<string[]>([]);
+  const [staffDefault, setStaffDefault] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
 
   const loadLists = useCallback(async () => {
@@ -38,6 +39,7 @@ export default function SettingsPage() {
     setSaferEnabled(d.saferEnabled ?? false);
     setSaferAvailable(d.saferAvailable ?? []);
     setSaferDefault(d.saferDefault ?? []);
+    setStaffDefault(d.staffDefault ?? []);
   }, [loadLists]);
 
   const loading = !lists && !listError;
@@ -47,8 +49,6 @@ export default function SettingsPage() {
       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
     );
   }
-
-  // Starring a category as a default implies including it.
   function toggleSaferAvailable(c: string) {
     setSaferAvailable((prev) => {
       if (prev.includes(c)) {
@@ -58,12 +58,20 @@ export default function SettingsPage() {
       return [...prev, c];
     });
   }
+
+  // Starring a category as a default implies including it.
   function toggleSaferDefault(c: string) {
     setSaferDefault((prev) => {
       if (prev.includes(c)) return prev.filter((x) => x !== c);
       setSaferAvailable((a) => (a.includes(c) ? a : [...a, c]));
       return [...prev, c];
     });
+  }
+
+  function toggleStaffDefault(n: string) {
+    setStaffDefault((prev) =>
+      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n],
+    );
   }
 
   function save() {
@@ -76,6 +84,7 @@ export default function SettingsPage() {
       methodButtons,
       saferAvailable,
       saferDefault,
+      staffDefault,
       setAt: now,
       confirmedAt: now,
     });
@@ -92,6 +101,7 @@ export default function SettingsPage() {
     setSaferEnabled(false);
     setSaferAvailable([]);
     setSaferDefault([]);
+    setStaffDefault([]);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -353,6 +363,66 @@ export default function SettingsPage() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Other staff involved — default selections */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-medium text-ink">
+            Other staff involved
+          </label>
+          <p className="mb-2.5 text-xs text-muted">
+            Pick the people you usually do outreach with. They’ll be
+            pre-selected on every new entry and can be changed per entry. Names
+            come from column I of the sheet.
+          </p>
+
+          {loading ? (
+            <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
+          ) : (lists?.staff?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted">
+              No staff names found in column I of the sheet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(lists?.staff ?? []).map((n) => {
+                const checked = staffDefault.includes(n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() => toggleStaffDefault(n)}
+                    className={[
+                      "flex min-h-[48px] items-center justify-between gap-2 rounded-xl border px-3.5 text-left text-sm font-medium transition-colors",
+                      checked
+                        ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                        : "border-line bg-field text-muted hover:bg-white",
+                    ].join(" ")}
+                  >
+                    <span className="leading-tight">{n}</span>
+                    {checked && (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                        className="shrink-0"
+                      >
+                        <path
+                          d="M3 8.5l3.5 3.5L13 5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

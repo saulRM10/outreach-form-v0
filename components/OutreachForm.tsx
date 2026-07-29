@@ -63,6 +63,7 @@ interface FormState {
   followUp: (typeof FOLLOWUP_OPTIONS)[number];
   followUpDate: string; // MM/DD/YY
   saferCategories: string[];
+  otherStaff: string[];
 }
 
 function blankState(defaults: Defaults): FormState {
@@ -77,7 +78,10 @@ function blankState(defaults: Defaults): FormState {
     notes: "",
     followUp: "No",
     followUpDate: "",
-    saferCategories: [...(defaults.saferDefault ?? [])],
+    saferCategories: defaults.saferEnabled
+      ? [...(defaults.saferDefault ?? [])]
+      : [],
+    otherStaff: [...(defaults.staffDefault ?? [])],
   };
 }
 
@@ -89,6 +93,7 @@ const EMPTY_DEFAULTS: Defaults = {
   saferEnabled: false,
   saferAvailable: [],
   saferDefault: [],
+  staffDefault: [],
   setAt: "",
   confirmedAt: "",
 };
@@ -135,6 +140,7 @@ export default function OutreachForm() {
       campaignName: d.campaignName || f.campaignName,
       outreachLead: d.outreachLead || f.outreachLead,
       saferCategories: d.saferEnabled ? [...(d.saferDefault ?? [])] : [],
+      otherStaff: [...(d.staffDefault ?? [])],
     }));
     // Nothing set yet: open the strip so the first entry can't be filed blind.
     if (!d.outreachGoal && !d.campaignName && !d.outreachLead)
@@ -242,6 +248,7 @@ export default function OutreachForm() {
     const payload: SubmissionPayload = {
       contactName: form.contact?.name ?? "",
       streetAddress: form.contact?.address ?? "",
+      contactId: form.contact?.id ?? "",
       campaignName: form.campaignName,
       outreachLead: form.outreachLead,
       outreachMethod: form.outreachMethod,
@@ -249,6 +256,7 @@ export default function OutreachForm() {
       response: form.response,
       notes: composeNotes(form.outreachGoal, form.notes),
       saferCategories: form.saferCategories,
+      otherStaff: form.otherStaff,
       followUpRequired: form.followUp === "Yes",
       followUpDate: form.followUp === "Yes" ? form.followUpDate : "",
     };
@@ -390,6 +398,22 @@ export default function OutreachForm() {
           }
         />
 
+        {/* Other staff involved — multi-select from a preset list. Optional;
+            hides itself when the staff list is empty. */}
+        <StaffField
+          options={lists?.staff ?? []}
+          selected={form.otherStaff}
+          loading={loading}
+          onToggle={(name) =>
+            setForm((f) => ({
+              ...f,
+              otherStaff: f.otherStaff.includes(name)
+                ? f.otherStaff.filter((n) => n !== name)
+                : [...f.otherStaff, name],
+            }))
+          }
+        />
+
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
             <label
@@ -524,6 +548,86 @@ export default function OutreachForm() {
 }
 
 // --- small presentational helpers ---
+
+function StaffField({
+  options,
+  selected,
+  loading,
+  onToggle,
+}: {
+  options: string[];
+  selected: string[];
+  loading?: boolean;
+  onToggle: (name: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="mb-4">
+        <label className="mb-1.5 block text-sm font-medium text-ink">
+          Other staff involved
+        </label>
+        <div className="h-[44px] animate-pulse rounded-xl border border-line bg-field" />
+      </div>
+    );
+  }
+
+  if (options.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <label className="mb-1 block text-sm font-medium text-ink">
+        Other staff involved
+      </label>
+      <p className="mb-2 text-xs text-muted">
+        Anyone else who joined this outreach. Leave blank if it was just you.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((name) => {
+          const on = selected.includes(name);
+          return (
+            <button
+              key={name}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              onClick={() => onToggle(name)}
+              className={[
+                "flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3 text-left text-sm font-medium transition-colors",
+                on
+                  ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                  : "border-line bg-field text-muted hover:bg-white",
+              ].join(" ")}
+            >
+              <span
+                aria-hidden="true"
+                className={[
+                  "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                  on
+                    ? "border-brand-primary bg-brand-primary text-white"
+                    : "border-line bg-white",
+                ].join(" ")}
+              >
+                {on && (
+                  <svg width="11" height="11" viewBox="0 0 16 16">
+                    <path
+                      d="M3 8.5l3.5 3.5L13 5"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </span>
+              <span className="leading-tight">{name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Multi-select for SAFER Compliance categories. Renders nothing when the admin
