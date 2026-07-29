@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ListData } from "@/lib/types";
 import { loadDefaults, saveDefaults, clearDefaults } from "@/lib/defaults";
 import {
@@ -27,6 +28,8 @@ const METHOD_ICONS: Record<string, LucideIcon> = {
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
+
   const [lists, setLists] = useState<ListData | null>(null);
   const [listError, setListError] = useState(false);
   const [outreachGoal, setOutreachGoal] = useState("");
@@ -120,7 +123,11 @@ export default function SettingsPage() {
       confirmedAt: now,
     });
     setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+
+    // Client-side navigate back to home form
+    setTimeout(() => {
+      router.push("/");
+    }, 150);
   }
 
   function clearAll() {
@@ -217,7 +224,7 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* Team Defaults (Lead + Supporting Staff Chips) */}
+        {/* Team Defaults */}
         <div className="mb-4 rounded-xl border border-line bg-field/50 p-3 space-y-3">
           <div>
             <label
@@ -480,7 +487,7 @@ export default function SettingsPage() {
 
         {saved && (
           <p className="mt-2 text-center text-xs font-medium text-brand-success">
-            Saved on this device.
+            Saved! Redirecting…
           </p>
         )}
       </div>
