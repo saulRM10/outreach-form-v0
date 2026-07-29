@@ -12,6 +12,8 @@ import {
   AtSign,
   Mailbox,
   HelpCircle,
+  Check,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,10 +65,19 @@ export default function SettingsPage() {
 
   const loading = !lists && !listError;
 
+  // Toggles & Helpers
   function toggleMethod(m: string) {
     setMethodButtons((prev) =>
       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
     );
+  }
+
+  function selectAllMethods() {
+    if (lists?.methods) setMethodButtons([...lists.methods]);
+  }
+
+  function clearAllMethods() {
+    setMethodButtons([]);
   }
 
   function toggleSaferAvailable(c: string) {
@@ -77,6 +88,15 @@ export default function SettingsPage() {
       }
       return [...prev, c];
     });
+  }
+
+  function selectAllSafer() {
+    if (lists?.saferCategories) setSaferAvailable([...lists.saferCategories]);
+  }
+
+  function clearAllSafer() {
+    setSaferAvailable([]);
+    setSaferDefault([]);
   }
 
   function toggleStaffDefault(n: string) {
@@ -273,9 +293,32 @@ export default function SettingsPage() {
 
         {/* Quick Method Buttons */}
         <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-ink">
-            Quick method buttons
-          </label>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="block text-sm font-medium text-ink">
+              Quick method buttons
+            </label>
+            {!loading && (lists?.methods?.length ?? 0) > 0 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={selectAllMethods}
+                  className="inline-flex items-center gap-1 rounded-md border border-line bg-field px-2 py-1 text-[11px] font-medium text-ink transition-colors hover:border-brand-primary/40 hover:bg-white"
+                >
+                  <Check className="h-3 w-3 text-brand-secondary" />
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAllMethods}
+                  className="inline-flex items-center gap-1 rounded-md border border-line bg-field px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:border-line hover:bg-white hover:text-ink"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+
           {loading ? (
             <div className="h-[44px] animate-pulse rounded-xl border border-line bg-field" />
           ) : (
@@ -342,6 +385,29 @@ export default function SettingsPage() {
 
           {saferEnabled && (
             <div className="mt-3">
+              <div className="mb-2 flex items-center justify-end">
+                {!loading && (lists?.saferCategories?.length ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={selectAllSafer}
+                      className="inline-flex items-center gap-1 rounded-md border border-line bg-field px-2 py-1 text-[11px] font-medium text-ink transition-colors hover:border-brand-primary/40 hover:bg-white"
+                    >
+                      <Check className="h-3 w-3 text-brand-secondary" />
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearAllSafer}
+                      className="inline-flex items-center gap-1 rounded-md border border-line bg-field px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:border-line hover:bg-white hover:text-ink"
+                    >
+                      <X className="h-3 w-3" />
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {loading ? (
                 <div className="h-[38px] animate-pulse rounded-xl border border-line bg-field" />
               ) : (
