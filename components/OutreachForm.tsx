@@ -62,6 +62,7 @@ interface FormState {
   notes: string;
   followUp: (typeof FOLLOWUP_OPTIONS)[number];
   followUpDate: string; // MM/DD/YY
+  saferCategories: string[];
 }
 
 function blankState(defaults: Defaults): FormState {
@@ -76,6 +77,7 @@ function blankState(defaults: Defaults): FormState {
     notes: "",
     followUp: "No",
     followUpDate: "",
+    saferCategories: [...(defaults.saferDefault ?? [])],
   };
 }
 
@@ -84,6 +86,8 @@ const EMPTY_DEFAULTS: Defaults = {
   campaignName: "",
   outreachLead: "",
   methodButtons: [],
+  saferAvailable: [],
+  saferDefault: [],
   setAt: "",
   confirmedAt: "",
 };
@@ -99,6 +103,11 @@ export default function OutreachForm() {
   const [stripOpen, setStripOpen] = useState(false);
   const [stale, setStale] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  const [saferConfig, setSaferConfig] = useState<{
+    available: string[];
+    default: string[];
+  }>({ available: [], default: [] });
+
   const [toast, setToast] = useState<{
     kind: ToastKind;
     message: string;
@@ -111,11 +120,17 @@ export default function OutreachForm() {
     const d = loadDefaults();
     defaultsRef.current = d;
     setMethodButtons(d.methodButtons);
+    setSaferConfig({
+      available: d.saferAvailable ?? [],
+      default: d.saferDefault ?? [],
+    });
+
     setForm((f) => ({
       ...f,
       outreachGoal: d.outreachGoal || f.outreachGoal,
       campaignName: d.campaignName || f.campaignName,
       outreachLead: d.outreachLead || f.outreachLead,
+      saferCategories: [...(d.saferDefault ?? [])],
     }));
     // Nothing set yet: open the strip so the first entry can't be filed blind.
     if (!d.outreachGoal && !d.campaignName && !d.outreachLead)
@@ -172,6 +187,13 @@ export default function OutreachForm() {
     }
   }, []);
 
+  const saferAvailable = (() => {
+    const all = lists?.saferCategories ?? [];
+    if (saferConfig.available.length === 0) return all;
+    const allow = new Set(saferConfig.available);
+    return all.filter((c) => allow.has(c));
+  })();
+
   useEffect(() => {
     loadLists();
   }, [loadLists]);
@@ -221,6 +243,7 @@ export default function OutreachForm() {
       dateOfOutreach: form.dateOfOutreach,
       response: form.response,
       notes: composeNotes(form.outreachGoal, form.notes),
+      saferCategories: form.saferCategories,
       followUpRequired: form.followUp === "Yes",
       followUpDate: form.followUp === "Yes" ? form.followUpDate : "",
     };
@@ -345,6 +368,22 @@ export default function OutreachForm() {
             loading={loading}
           />
         </Field>
+
+        {/* SAFER Compliance — multi-select. Options and their pre-checked
+            defaults */}
+        <SaferField
+          available={saferAvailable}
+          selected={form.saferCategories}
+          loading={loading}
+          onToggle={(cat) =>
+            setForm((f) => ({
+              ...f,
+              saferCategories: f.saferCategories.includes(cat)
+                ? f.saferCategories.filter((c) => c !== cat)
+                : [...f.saferCategories, cat],
+            }))
+          }
+        />
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
@@ -480,6 +519,90 @@ export default function OutreachForm() {
 }
 
 // --- small presentational helpers ---
+
+/**
+ * Multi-select for SAFER Compliance categories. Renders nothing when the admin
+ * has made none available
+ */
+function SaferField({
+  available,
+  selected,
+  loading,
+  onToggle,
+}: {
+  available: string[];
+  selected: string[];
+  loading?: boolean;
+  onToggle: (category: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="mb-4">
+        <label className="mb-1.5 block text-sm font-medium text-ink">
+          SAFER Compliance
+        </label>
+        <div className="h-[44px] animate-pulse rounded-xl border border-line bg-field" />
+      </div>
+    );
+  }
+
+  if (available.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <label className="mb-1 block text-sm font-medium text-ink">
+        SAFER Compliance
+      </label>
+      <p className="mb-2 text-xs text-muted">
+        Tag every category this outreach supports. Pick as many as apply.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {available.map((cat) => {
+          const on = selected.includes(cat);
+          return (
+            <button
+              key={cat}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              onClick={() => onToggle(cat)}
+              className={[
+                "flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3 text-left text-sm font-medium transition-colors",
+                on
+                  ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                  : "border-line bg-field text-muted hover:bg-white",
+              ].join(" ")}
+            >
+              <span
+                aria-hidden="true"
+                className={[
+                  "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                  on
+                    ? "border-brand-primary bg-brand-primary text-white"
+                    : "border-line bg-white",
+                ].join(" ")}
+              >
+                {on && (
+                  <svg width="11" height="11" viewBox="0 0 16 16">
+                    <path
+                      d="M3 8.5l3.5 3.5L13 5"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </span>
+              <span className="leading-tight">{cat}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function SessionStrip({
   open,

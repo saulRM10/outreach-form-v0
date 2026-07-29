@@ -3,6 +3,24 @@ import { getSheetsClient, getSheetId, SHEETS } from "@/lib/google";
 import type { SubmissionPayload } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+const SAFER_SEP = "; ";
+
+function joinSafer(values: unknown): string {
+  if (!Array.isArray(values)) return "";
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const v = String(raw ?? "")
+      .split(SAFER_SEP)
+      .join(" ")
+      .trim();
+    if (v && !seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+    }
+  }
+  return out.join(SAFER_SEP);
+}
 
 export async function POST(request: Request) {
   let body: SubmissionPayload;
@@ -46,6 +64,9 @@ export async function POST(request: Request) {
   const followUp = body.followUpRequired ? "TRUE" : "FALSE";
   const followUpDate = body.followUpRequired ? body.followUpDate || "" : "";
 
+  // SAFER categories are multi-select but land in one audit cell (column L).
+  const safer = joinSafer(body.saferCategories);
+
   // Column order must match Form_Submissions schema (1..10).
   const row = [
     activityName, // A  Outreach Activity Name
@@ -59,6 +80,7 @@ export async function POST(request: Request) {
     followUp, // I  Follow-up Required?
     followUpDate, // J  Schedule date for Follow up
     body.streetAddress ?? "", // K  Street Address
+    safer, // L  SAFER Compliance (joined with "; ")
   ];
 
   try {

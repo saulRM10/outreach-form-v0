@@ -6,6 +6,8 @@ export interface Defaults {
   outreachLead: string;
   methodButtons: string[];
   outreachGoal: string;
+  saferAvailable: string[]; // Outreach categories
+  saferDefault: string[]; // Outreach categories
   setAt: string;
   confirmedAt: string;
 }
@@ -18,6 +20,8 @@ export function loadDefaults(): Defaults {
     campaignName: "",
     outreachLead: "",
     methodButtons: [],
+    saferAvailable: [],
+    saferDefault: [],
     setAt: "",
     confirmedAt: "",
   };
@@ -35,6 +39,12 @@ export function loadDefaults(): Defaults {
         typeof parsed.outreachLead === "string" ? parsed.outreachLead : "",
       methodButtons: Array.isArray(parsed.methodButtons)
         ? parsed.methodButtons
+        : [],
+      saferAvailable: Array.isArray(parsed.saferAvailable)
+        ? parsed.saferAvailable
+        : [],
+      saferDefault: Array.isArray(parsed.saferDefault)
+        ? parsed.saferDefault
         : [],
       setAt: typeof parsed.setAt === "string" ? parsed.setAt : "",
       confirmedAt:

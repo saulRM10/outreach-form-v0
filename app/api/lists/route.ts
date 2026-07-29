@@ -33,6 +33,7 @@ export async function GET() {
       `${SHEETS.lists}!D2:D`, // Leads
       `${SHEETS.lists}!E2:E`, // Methods
       `${SHEETS.lists}!F2:F`, // Responses
+      `${SHEETS.lists}!G2:G`, // SAFER Compliance Outreach categories
     ];
 
     const { data } = await sheets.spreadsheets.values.batchGet({
@@ -64,6 +65,7 @@ export async function GET() {
       leads: clean(vr[3]?.values),
       methods: clean(vr[4]?.values),
       responses: clean(vr[5]?.values),
+      saferCategories: clean(vr[6]?.values),
     };
 
     return NextResponse.json(payload, {
