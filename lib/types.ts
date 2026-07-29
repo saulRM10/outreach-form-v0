@@ -1,9 +1,9 @@
 // A contact resolved from Form_Lists: name + address kept separate,
-// plus a combined label shown in the picker for context.
 export interface Contact {
+  id: string;
   name: string;
   address: string;
-  label: string; // "Name - Address" (or just name if no address)
+  label: string; // "Name - Address"
 }
 
 export interface ListData {
@@ -12,9 +12,12 @@ export interface ListData {
   leads: string[];
   methods: string[];
   responses: string[];
+  saferCategories: string[]; // Outreach categories
+  staff: string[];
 }
 
 export interface SubmissionPayload {
+  contactId: string; // <- add: written to column M
   contactName: string; // -> column B
   streetAddress: string; // -> column K
   campaignName: string;
@@ -25,4 +28,6 @@ export interface SubmissionPayload {
   notes: string;
   followUpRequired: boolean; // mapped from Yes/No
   followUpDate: string; // MM/DD/YY or "" when no follow-up
+  saferCategories: string[]; // Outreach categories
+  otherStaff: string[]; // <- add: written to column N (joined)
 }

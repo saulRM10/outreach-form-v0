@@ -3,6 +3,24 @@ import { getSheetsClient, getSheetId, SHEETS } from "@/lib/google";
 import type { SubmissionPayload } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+const MULTI_SEP = "; ";
+
+function joinMulti(values: unknown): string {
+  if (!Array.isArray(values)) return "";
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const v = String(raw ?? "")
+      .split(MULTI_SEP)
+      .join(" ")
+      .trim();
+    if (v && !seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+    }
+  }
+  return out.join(MULTI_SEP);
+}
 
 export async function POST(request: Request) {
   let body: SubmissionPayload;
@@ -32,12 +50,24 @@ export async function POST(request: Request) {
     );
   }
 
+  if (body.followUpRequired && !String(body.followUpDate ?? "").trim()) {
+    return NextResponse.json(
+      { error: "Missing: Schedule date for Follow up." },
+      { status: 400 },
+    );
+  }
+
   // Outreach Activity Name is automated from the outreach date (MM/DD/YY).
   const activityName = body.dateOfOutreach;
 
   // Boolean follow-up -> TRUE / FALSE. No follow-up => blank schedule cell.
   const followUp = body.followUpRequired ? "TRUE" : "FALSE";
   const followUpDate = body.followUpRequired ? body.followUpDate || "" : "";
+
+  // SAFER categories are multi-select but land in one audit cell (column L).
+  const safer = joinMulti(body.saferCategories);
+  // Other staff involved — multi-select, joined into column N.
+  const otherStaff = joinMulti(body.otherStaff);
 
   // Column order must match Form_Submissions schema (1..10).
   const row = [
@@ -52,6 +82,9 @@ export async function POST(request: Request) {
     followUp, // I  Follow-up Required?
     followUpDate, // J  Schedule date for Follow up
     body.streetAddress ?? "", // K  Street Address
+    safer, // L  SAFER Compliance (joined with "; ")
+    body.contactId ?? "", // M  Contact ID
+    otherStaff, // N  Other staff involved (joined with "; ")
   ];
 
   try {

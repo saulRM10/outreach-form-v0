@@ -4,13 +4,37 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { ListData } from "@/lib/types";
 import { loadDefaults, saveDefaults, clearDefaults } from "@/lib/defaults";
+import {
+  MessageSquare,
+  Phone,
+  Users,
+  Video,
+  AtSign,
+  Mailbox,
+  HelpCircle,
+  type LucideIcon,
+} from "lucide-react";
+
+const METHOD_ICONS: Record<string, LucideIcon> = {
+  Text: MessageSquare,
+  "Phone Call": Phone,
+  "In-Person": Users,
+  "Virtual Meeting": Video,
+  Email: AtSign,
+  Mailers: Mailbox,
+};
 
 export default function SettingsPage() {
   const [lists, setLists] = useState<ListData | null>(null);
   const [listError, setListError] = useState(false);
+  const [outreachGoal, setOutreachGoal] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [outreachLead, setOutreachLead] = useState("");
   const [methodButtons, setMethodButtons] = useState<string[]>([]);
+  const [saferEnabled, setSaferEnabled] = useState(false);
+  const [saferAvailable, setSaferAvailable] = useState<string[]>([]);
+  const [saferDefault, setSaferDefault] = useState<string[]>([]);
+  const [staffDefault, setStaffDefault] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
 
   const loadLists = useCallback(async () => {
@@ -27,9 +51,14 @@ export default function SettingsPage() {
   useEffect(() => {
     loadLists();
     const d = loadDefaults();
+    setOutreachGoal(d.outreachGoal);
     setCampaignName(d.campaignName);
     setOutreachLead(d.outreachLead);
     setMethodButtons(d.methodButtons);
+    setSaferEnabled(d.saferEnabled ?? false);
+    setSaferAvailable(d.saferAvailable ?? []);
+    setSaferDefault(d.saferDefault ?? []);
+    setStaffDefault(d.staffDefault ?? []);
   }, [loadLists]);
 
   const loading = !lists && !listError;
@@ -39,18 +68,59 @@ export default function SettingsPage() {
       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
     );
   }
+  function toggleSaferAvailable(c: string) {
+    setSaferAvailable((prev) => {
+      if (prev.includes(c)) {
+        setSaferDefault((d) => d.filter((x) => x !== c));
+        return prev.filter((x) => x !== c);
+      }
+      return [...prev, c];
+    });
+  }
+
+  // Starring a category as a default implies including it.
+  function toggleSaferDefault(c: string) {
+    setSaferDefault((prev) => {
+      if (prev.includes(c)) return prev.filter((x) => x !== c);
+      setSaferAvailable((a) => (a.includes(c) ? a : [...a, c]));
+      return [...prev, c];
+    });
+  }
+
+  function toggleStaffDefault(n: string) {
+    setStaffDefault((prev) =>
+      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n],
+    );
+  }
 
   function save() {
-    saveDefaults({ campaignName, outreachLead, methodButtons });
+    const now = new Date().toISOString();
+    saveDefaults({
+      outreachGoal,
+      campaignName,
+      outreachLead,
+      saferEnabled,
+      methodButtons,
+      saferAvailable,
+      saferDefault,
+      staffDefault,
+      setAt: now,
+      confirmedAt: now,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
 
   function clearAll() {
     clearDefaults();
+    setOutreachGoal("");
     setCampaignName("");
     setOutreachLead("");
     setMethodButtons([]);
+    setSaferEnabled(false);
+    setSaferAvailable([]);
+    setSaferDefault([]);
+    setStaffDefault([]);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -102,6 +172,27 @@ export default function SettingsPage() {
 
         <div className="mb-4">
           <label
+            htmlFor="d-outreach-goal"
+            className="mb-1.5 block text-sm font-medium text-ink"
+          >
+            Default outreach goal
+          </label>
+          <p className="mb-2.5 text-xs text-muted">
+            Set this before you head out. Every entry saves it into the note.
+          </p>
+          <input
+            id="d-outreach-goal"
+            type="text"
+            value={outreachGoal}
+            maxLength={140}
+            onChange={(e) => setOutreachGoal(e.target.value)}
+            placeholder="Drop off flyer for community Plática, July 25"
+            className="min-h-[48px] w-full rounded-xl border border-line bg-field px-3.5 text-ink placeholder:text-muted/70"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label
             htmlFor="d-campaign"
             className="mb-1.5 block text-sm font-medium text-ink"
           >
@@ -138,9 +229,7 @@ export default function SettingsPage() {
             Quick method buttons
           </label>
           <p className="mb-2.5 text-xs text-muted">
-            Pick the methods you use most. They appear as one-tap buttons in the
-            form instead of a dropdown. Anything you don’t pick stays available
-            under “Other.”
+            Pick the methods you use most. They appear as one-tap buttons.
           </p>
 
           {loading ? (
@@ -151,6 +240,8 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(lists?.methods ?? []).map((m) => {
                 const checked = methodButtons.includes(m);
+                const Icon = METHOD_ICONS[m] || HelpCircle;
+
                 return (
                   <button
                     key={m}
@@ -164,7 +255,11 @@ export default function SettingsPage() {
                         : "border-line bg-field text-muted hover:bg-white",
                     ].join(" ")}
                   >
-                    <span className="leading-tight">{m}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="leading-tight truncate">{m}</span>
+                    </div>
+
                     {checked && (
                       <svg
                         width="16"
@@ -190,10 +285,167 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <p className="mb-4 text-xs text-muted">
-          Leave a field on “No default” to keep it blank in the form. Response
-          options always show as buttons in the form automatically.
-        </p>
+        {/* SAFER Compliance */}
+        <div className="mb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <label
+                htmlFor="safer-enabled"
+                className="block text-sm font-medium text-ink"
+              >
+                SAFER Compliance
+              </label>
+              <p className="mt-1 text-xs text-muted">
+                Turn on for projects that SAFER tracks for compliance. Off hides
+                the field from the form entirely.
+              </p>
+            </div>
+            <button
+              id="safer-enabled"
+              type="button"
+              role="switch"
+              aria-checked={saferEnabled}
+              onClick={() => setSaferEnabled((v) => !v)}
+              className={[
+                "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
+                saferEnabled ? "bg-brand-primary" : "bg-line",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                  saferEnabled ? "translate-x-6" : "translate-x-1",
+                ].join(" ")}
+              />
+            </button>
+          </div>
+
+          {saferEnabled && (
+            <div className="mt-3">
+              {loading ? (
+                <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
+              ) : (lists?.saferCategories?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted">
+                  No SAFER categories found in column G of the sheet.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {(lists?.saferCategories ?? []).map((c) => {
+                    const included = saferAvailable.includes(c);
+                    return (
+                      <div
+                        key={c}
+                        className={[
+                          "flex items-stretch gap-2 rounded-xl border transition-colors",
+                          included
+                            ? "border-brand-primary bg-brand-primary/10"
+                            : "border-line bg-field",
+                        ].join(" ")}
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={included}
+                          onClick={() => toggleSaferAvailable(c)}
+                          className="flex min-h-[48px] flex-1 items-center gap-2 px-3.5 text-left text-sm font-medium"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={[
+                              "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                              included
+                                ? "border-brand-primary bg-brand-primary text-white"
+                                : "border-line bg-white",
+                            ].join(" ")}
+                          >
+                            {included && (
+                              <svg width="11" height="11" viewBox="0 0 16 16">
+                                <path
+                                  d="M3 8.5l3.5 3.5L13 5"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  fill="none"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
+                          </span>
+                          <span
+                            className={
+                              included ? "text-brand-secondary" : "text-muted"
+                            }
+                          >
+                            {c}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Other staff involved — default selections */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-medium text-ink">
+            Other staff involved
+          </label>
+          <p className="mb-2.5 text-xs text-muted">
+            Pick the people you usually do outreach with. They’ll be
+            pre-selected on every new entry and can be changed per entry. Names
+            come from column I of the sheet.
+          </p>
+
+          {loading ? (
+            <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
+          ) : (lists?.staff?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted">
+              No staff names found in column I of the sheet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(lists?.staff ?? []).map((n) => {
+                const checked = staffDefault.includes(n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() => toggleStaffDefault(n)}
+                    className={[
+                      "flex min-h-[48px] items-center justify-between gap-2 rounded-xl border px-3.5 text-left text-sm font-medium transition-colors",
+                      checked
+                        ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                        : "border-line bg-field text-muted hover:bg-white",
+                    ].join(" ")}
+                  >
+                    <span className="leading-tight">{n}</span>
+                    {checked && (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                        className="shrink-0"
+                      >
+                        <path
+                          d="M3 8.5l3.5 3.5L13 5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="flex gap-2">
           <button

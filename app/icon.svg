@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="none">
+  <defs>
+    <!-- Vibrant Lightning Bolt Gradient -->
+    <linearGradient id="boltGradient" x1="12" y1="6" x2="12" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="100%" stop-color="#EAB308" />
+    </linearGradient>
+
+    <!-- Subtle Drop Shadow for Inner Depth -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Water Droplet Body -->
+  <path 
+    d="M12 2.5C12 2.5 4.5 11.2 4.5 15.5C4.5 19.64 7.86 23 12 23C16.14 23 19.5 19.64 19.5 15.5C19.5 11.2 12 2.5 12 2.5Z" 
+    fill="#35A9FE" 
+  />
+
+  <!-- Supabase-style Lightning Bolt -->
+  <path 
+    d="M13.2 6.5L7.8 13.2C7.5 13.6 7.8 14.2 8.3 14.2H12.2L10.8 19.5C10.5 20.4 11.7 20.8 12.2 20.1L17.2 12.8C17.5 12.4 17.2 11.8 16.7 11.8H12.8L14.2 6.5C14.4 5.7 13.3 5.3 13.2 6.5Z" 
+    fill="url(#boltGradient)" 
+    filter="url(#shadow)"
+  />
+</svg>
