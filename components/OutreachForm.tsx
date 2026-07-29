@@ -86,6 +86,7 @@ const EMPTY_DEFAULTS: Defaults = {
   campaignName: "",
   outreachLead: "",
   methodButtons: [],
+  saferEnabled: false,
   saferAvailable: [],
   saferDefault: [],
   setAt: "",
@@ -104,9 +105,11 @@ export default function OutreachForm() {
   const [stale, setStale] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [saferConfig, setSaferConfig] = useState<{
+    enabled: boolean;
+
     available: string[];
     default: string[];
-  }>({ available: [], default: [] });
+  }>({ enabled: false, available: [], default: [] });
 
   const [toast, setToast] = useState<{
     kind: ToastKind;
@@ -121,6 +124,7 @@ export default function OutreachForm() {
     defaultsRef.current = d;
     setMethodButtons(d.methodButtons);
     setSaferConfig({
+      enabled: d.saferEnabled ?? false,
       available: d.saferAvailable ?? [],
       default: d.saferDefault ?? [],
     });
@@ -130,7 +134,7 @@ export default function OutreachForm() {
       outreachGoal: d.outreachGoal || f.outreachGoal,
       campaignName: d.campaignName || f.campaignName,
       outreachLead: d.outreachLead || f.outreachLead,
-      saferCategories: [...(d.saferDefault ?? [])],
+      saferCategories: d.saferEnabled ? [...(d.saferDefault ?? [])] : [],
     }));
     // Nothing set yet: open the strip so the first entry can't be filed blind.
     if (!d.outreachGoal && !d.campaignName && !d.outreachLead)
@@ -188,6 +192,7 @@ export default function OutreachForm() {
   }, []);
 
   const saferAvailable = (() => {
+    if (!saferConfig.enabled) return [];
     const all = lists?.saferCategories ?? [];
     if (saferConfig.available.length === 0) return all;
     const allow = new Set(saferConfig.available);

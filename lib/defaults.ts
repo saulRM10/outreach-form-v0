@@ -6,6 +6,7 @@ export interface Defaults {
   outreachLead: string;
   methodButtons: string[];
   outreachGoal: string;
+  saferEnabled: boolean; // switch for the SAFER field
   saferAvailable: string[]; // Outreach categories
   saferDefault: string[]; // Outreach categories
   setAt: string;
@@ -20,6 +21,7 @@ export function loadDefaults(): Defaults {
     campaignName: "",
     outreachLead: "",
     methodButtons: [],
+    saferEnabled: false,
     saferAvailable: [],
     saferDefault: [],
     setAt: "",
@@ -40,6 +42,7 @@ export function loadDefaults(): Defaults {
       methodButtons: Array.isArray(parsed.methodButtons)
         ? parsed.methodButtons
         : [],
+      saferEnabled: parsed.saferEnabled === true,
       saferAvailable: Array.isArray(parsed.saferAvailable)
         ? parsed.saferAvailable
         : [],

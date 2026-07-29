@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [campaignName, setCampaignName] = useState("");
   const [outreachLead, setOutreachLead] = useState("");
   const [methodButtons, setMethodButtons] = useState<string[]>([]);
+  const [saferEnabled, setSaferEnabled] = useState(false);
   const [saferAvailable, setSaferAvailable] = useState<string[]>([]);
   const [saferDefault, setSaferDefault] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     setCampaignName(d.campaignName);
     setOutreachLead(d.outreachLead);
     setMethodButtons(d.methodButtons);
+    setSaferEnabled(d.saferEnabled ?? false);
     setSaferAvailable(d.saferAvailable ?? []);
     setSaferDefault(d.saferDefault ?? []);
   }, [loadLists]);
@@ -46,6 +48,7 @@ export default function SettingsPage() {
     );
   }
 
+  // Starring a category as a default implies including it.
   function toggleSaferAvailable(c: string) {
     setSaferAvailable((prev) => {
       if (prev.includes(c)) {
@@ -55,8 +58,6 @@ export default function SettingsPage() {
       return [...prev, c];
     });
   }
-
-  // Starring a category as a default implies including it.
   function toggleSaferDefault(c: string) {
     setSaferDefault((prev) => {
       if (prev.includes(c)) return prev.filter((x) => x !== c);
@@ -71,6 +72,7 @@ export default function SettingsPage() {
       outreachGoal,
       campaignName,
       outreachLead,
+      saferEnabled,
       methodButtons,
       saferAvailable,
       saferDefault,
@@ -87,6 +89,7 @@ export default function SettingsPage() {
     setCampaignName("");
     setOutreachLead("");
     setMethodButtons([]);
+    setSaferEnabled(false);
     setSaferAvailable([]);
     setSaferDefault([]);
     setSaved(true);
@@ -249,103 +252,107 @@ export default function SettingsPage() {
 
         {/* SAFER Compliance */}
         <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-ink">
-            SAFER Compliance
-          </label>
-          <p className="mb-2.5 text-xs text-muted">
-            Choose which categories staff can tag on an entry. Tap the star to
-            pre-select one so it’s already checked on every new form. Categories
-            come from column G of the sheet.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <label
+                htmlFor="safer-enabled"
+                className="block text-sm font-medium text-ink"
+              >
+                SAFER Compliance
+              </label>
+              <p className="mt-1 text-xs text-muted">
+                Turn on for projects that track SAFER. Off hides the field from
+                the form entirely.
+              </p>
+            </div>
+            <button
+              id="safer-enabled"
+              type="button"
+              role="switch"
+              aria-checked={saferEnabled}
+              onClick={() => setSaferEnabled((v) => !v)}
+              className={[
+                "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
+                saferEnabled ? "bg-brand-primary" : "bg-line",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                  saferEnabled ? "translate-x-6" : "translate-x-1",
+                ].join(" ")}
+              />
+            </button>
+          </div>
 
-          {loading ? (
-            <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
-          ) : (lists?.saferCategories?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted">
-              No SAFER categories found in column G of the sheet.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {(lists?.saferCategories ?? []).map((c) => {
-                const included = saferAvailable.includes(c);
-                const isDefault = saferDefault.includes(c);
-                return (
-                  <div
-                    key={c}
-                    className={[
-                      "flex items-stretch gap-2 rounded-xl border transition-colors",
-                      included
-                        ? "border-brand-primary bg-brand-primary/10"
-                        : "border-line bg-field",
-                    ].join(" ")}
-                  >
-                    <button
-                      type="button"
-                      aria-pressed={included}
-                      onClick={() => toggleSaferAvailable(c)}
-                      className="flex min-h-[48px] flex-1 items-center gap-2 px-3.5 text-left text-sm font-medium"
-                    >
-                      <span
-                        aria-hidden="true"
+          {saferEnabled && (
+            <div className="mt-3">
+              <p className="mb-2.5 text-xs text-muted">
+                Choose which categories staff can tag on an entry. Categories
+                come from column G of the sheet.
+              </p>
+
+              {loading ? (
+                <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
+              ) : (lists?.saferCategories?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted">
+                  No SAFER categories found in column G of the sheet.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {(lists?.saferCategories ?? []).map((c) => {
+                    const included = saferAvailable.includes(c);
+                    return (
+                      <div
+                        key={c}
                         className={[
-                          "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                          "flex items-stretch gap-2 rounded-xl border transition-colors",
                           included
-                            ? "border-brand-primary bg-brand-primary text-white"
-                            : "border-line bg-white",
+                            ? "border-brand-primary bg-brand-primary/10"
+                            : "border-line bg-field",
                         ].join(" ")}
                       >
-                        {included && (
-                          <svg width="11" height="11" viewBox="0 0 16 16">
-                            <path
-                              d="M3 8.5l3.5 3.5L13 5"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              fill="none"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                      <span
-                        className={
-                          included ? "text-brand-secondary" : "text-muted"
-                        }
-                      >
-                        {c}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={isDefault}
-                      aria-label={
-                        isDefault
-                          ? `Remove ${c} from defaults`
-                          : `Pre-select ${c} by default`
-                      }
-                      onClick={() => toggleSaferDefault(c)}
-                      className="flex min-h-[48px] w-12 shrink-0 items-center justify-center border-l border-line/60"
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill={isDefault ? "currentColor" : "none"}
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={
-                          isDefault ? "text-brand-primary" : "text-muted"
-                        }
-                        aria-hidden="true"
-                      >
-                        <path d="M12 17.3l-5.4 3.1 1.4-6.1-4.7-4.1 6.2-.5L12 4l2.5 5.7 6.2.5-4.7 4.1 1.4 6.1z" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })}
+                        <button
+                          type="button"
+                          aria-pressed={included}
+                          onClick={() => toggleSaferAvailable(c)}
+                          className="flex min-h-[48px] flex-1 items-center gap-2 px-3.5 text-left text-sm font-medium"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={[
+                              "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                              included
+                                ? "border-brand-primary bg-brand-primary text-white"
+                                : "border-line bg-white",
+                            ].join(" ")}
+                          >
+                            {included && (
+                              <svg width="11" height="11" viewBox="0 0 16 16">
+                                <path
+                                  d="M3 8.5l3.5 3.5L13 5"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  fill="none"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
+                          </span>
+                          <span
+                            className={
+                              included ? "text-brand-secondary" : "text-muted"
+                            }
+                          >
+                            {c}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
