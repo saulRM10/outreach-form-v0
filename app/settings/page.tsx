@@ -68,21 +68,13 @@ export default function SettingsPage() {
       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
     );
   }
+
   function toggleSaferAvailable(c: string) {
     setSaferAvailable((prev) => {
       if (prev.includes(c)) {
         setSaferDefault((d) => d.filter((x) => x !== c));
         return prev.filter((x) => x !== c);
       }
-      return [...prev, c];
-    });
-  }
-
-  // Starring a category as a default implies including it.
-  function toggleSaferDefault(c: string) {
-    setSaferDefault((prev) => {
-      if (prev.includes(c)) return prev.filter((x) => x !== c);
-      setSaferAvailable((a) => (a.includes(c) ? a : [...a, c]));
       return [...prev, c];
     });
   }
@@ -151,8 +143,7 @@ export default function SettingsPage() {
           </h1>
         </div>
         <p className="mt-1.5 pl-4 text-sm text-muted">
-          Pre-set the values you pick most. The form opens with these filled in.
-          Saved on this device.
+          Pre-set default values for your session. Saved on this device.
         </p>
       </header>
 
@@ -170,6 +161,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Goal */}
         <div className="mb-4">
           <label
             htmlFor="d-outreach-goal"
@@ -177,9 +169,6 @@ export default function SettingsPage() {
           >
             Default outreach goal
           </label>
-          <p className="mb-2.5 text-xs text-muted">
-            Set this before you head out. Every entry saves it into the note.
-          </p>
           <input
             id="d-outreach-goal"
             type="text"
@@ -187,10 +176,11 @@ export default function SettingsPage() {
             maxLength={140}
             onChange={(e) => setOutreachGoal(e.target.value)}
             placeholder="Drop off flyer for community Plática, July 25"
-            className="min-h-[48px] w-full rounded-xl border border-line bg-field px-3.5 text-ink placeholder:text-muted/70"
+            className="min-h-[44px] w-full rounded-xl border border-line bg-field px-3.5 text-sm text-ink placeholder:text-muted/70"
           />
         </div>
 
+        {/* Campaign */}
         <div className="mb-4">
           <label
             htmlFor="d-campaign"
@@ -207,37 +197,89 @@ export default function SettingsPage() {
           />
         </div>
 
-        <div className="mb-4">
-          <label
-            htmlFor="d-lead"
-            className="mb-1.5 block text-sm font-medium text-ink"
-          >
-            Default outreach lead
-          </label>
-          <Select
-            id="d-lead"
-            value={outreachLead}
-            onChange={setOutreachLead}
-            options={lists?.leads}
-            loading={loading}
-          />
+        {/* Team Defaults (Lead + Supporting Staff Chips) */}
+        <div className="mb-4 rounded-xl border border-line bg-field/50 p-3 space-y-3">
+          <div>
+            <label
+              htmlFor="d-lead"
+              className="mb-1 block text-sm font-medium text-ink"
+            >
+              Default outreach lead
+            </label>
+            <Select
+              id="d-lead"
+              value={outreachLead}
+              onChange={setOutreachLead}
+              options={lists?.leads}
+              loading={loading}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">
+              Default supporting staff
+            </label>
+            {loading ? (
+              <div className="h-[36px] animate-pulse rounded-lg border border-line bg-field" />
+            ) : (lists?.staff?.length ?? 0) === 0 ? (
+              <p className="text-xs text-muted">No staff found.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {(lists?.staff ?? []).map((n) => {
+                  const checked = staffDefault.includes(n);
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={checked}
+                      onClick={() => toggleStaffDefault(n)}
+                      className={[
+                        "flex min-h-[32px] items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors",
+                        checked
+                          ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                          : "border-line bg-white text-muted hover:border-brand-primary/40",
+                      ].join(" ")}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={[
+                          "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border",
+                          checked
+                            ? "border-brand-primary bg-brand-primary text-white"
+                            : "border-line bg-white",
+                        ].join(" ")}
+                      >
+                        {checked && (
+                          <svg width="9" height="9" viewBox="0 0 16 16">
+                            <path
+                              d="M3 8.5l3.5 3.5L13 5"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </span>
+                      <span>{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Quick method buttons */}
+        {/* Quick Method Buttons */}
         <div className="mb-4">
           <label className="mb-1.5 block text-sm font-medium text-ink">
             Quick method buttons
           </label>
-          <p className="mb-2.5 text-xs text-muted">
-            Pick the methods you use most. They appear as one-tap buttons.
-          </p>
-
           {loading ? (
-            <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
-          ) : (lists?.methods?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted">No methods found in the sheet.</p>
+            <div className="h-[44px] animate-pulse rounded-xl border border-line bg-field" />
           ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               {(lists?.methods ?? []).map((m) => {
                 const checked = methodButtons.includes(m);
                 const Icon = METHOD_ICONS[m] || HelpCircle;
@@ -249,35 +291,14 @@ export default function SettingsPage() {
                     aria-pressed={checked}
                     onClick={() => toggleMethod(m)}
                     className={[
-                      "flex min-h-[48px] items-center justify-between gap-2 rounded-xl border px-3.5 text-left text-sm font-medium transition-colors",
+                      "flex min-h-[44px] items-center gap-2.5 rounded-xl border px-3 text-left text-xs font-medium transition-colors",
                       checked
                         ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
                         : "border-line bg-field text-muted hover:bg-white",
                     ].join(" ")}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="leading-tight truncate">{m}</span>
-                    </div>
-
-                    {checked && (
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 16 16"
-                        aria-hidden="true"
-                        className="shrink-0"
-                      >
-                        <path
-                          d="M3 8.5l3.5 3.5L13 5"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{m}</span>
                   </button>
                 );
               })}
@@ -287,7 +308,7 @@ export default function SettingsPage() {
 
         {/* SAFER Compliance */}
         <div className="mb-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <label
                 htmlFor="safer-enabled"
@@ -295,9 +316,8 @@ export default function SettingsPage() {
               >
                 SAFER Compliance
               </label>
-              <p className="mt-1 text-xs text-muted">
-                Turn on for projects that SAFER tracks for compliance. Off hides
-                the field from the form entirely.
+              <p className="mt-0.5 text-xs text-muted">
+                Enable compliance tagging.
               </p>
             </div>
             <button
@@ -307,7 +327,7 @@ export default function SettingsPage() {
               aria-checked={saferEnabled}
               onClick={() => setSaferEnabled((v) => !v)}
               className={[
-                "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
+                "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
                 saferEnabled ? "bg-brand-primary" : "bg-line",
               ].join(" ")}
             >
@@ -323,62 +343,48 @@ export default function SettingsPage() {
           {saferEnabled && (
             <div className="mt-3">
               {loading ? (
-                <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
-              ) : (lists?.saferCategories?.length ?? 0) === 0 ? (
-                <p className="text-sm text-muted">
-                  No SAFER categories found in column G of the sheet.
-                </p>
+                <div className="h-[38px] animate-pulse rounded-xl border border-line bg-field" />
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {(lists?.saferCategories ?? []).map((c) => {
                     const included = saferAvailable.includes(c);
                     return (
-                      <div
+                      <button
                         key={c}
+                        type="button"
+                        aria-pressed={included}
+                        onClick={() => toggleSaferAvailable(c)}
                         className={[
-                          "flex items-stretch gap-2 rounded-xl border transition-colors",
+                          "flex min-h-[32px] items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors",
                           included
-                            ? "border-brand-primary bg-brand-primary/10"
-                            : "border-line bg-field",
+                            ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
+                            : "border-line bg-white text-muted hover:border-brand-primary/40",
                         ].join(" ")}
                       >
-                        <button
-                          type="button"
-                          aria-pressed={included}
-                          onClick={() => toggleSaferAvailable(c)}
-                          className="flex min-h-[48px] flex-1 items-center gap-2 px-3.5 text-left text-sm font-medium"
+                        <span
+                          aria-hidden="true"
+                          className={[
+                            "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border",
+                            included
+                              ? "border-brand-primary bg-brand-primary text-white"
+                              : "border-line bg-white",
+                          ].join(" ")}
                         >
-                          <span
-                            aria-hidden="true"
-                            className={[
-                              "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                              included
-                                ? "border-brand-primary bg-brand-primary text-white"
-                                : "border-line bg-white",
-                            ].join(" ")}
-                          >
-                            {included && (
-                              <svg width="11" height="11" viewBox="0 0 16 16">
-                                <path
-                                  d="M3 8.5l3.5 3.5L13 5"
-                                  stroke="currentColor"
-                                  strokeWidth="2.5"
-                                  fill="none"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            )}
-                          </span>
-                          <span
-                            className={
-                              included ? "text-brand-secondary" : "text-muted"
-                            }
-                          >
-                            {c}
-                          </span>
-                        </button>
-                      </div>
+                          {included && (
+                            <svg width="9" height="9" viewBox="0 0 16 16">
+                              <path
+                                d="M3 8.5l3.5 3.5L13 5"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                        <span>{c}</span>
+                      </button>
                     );
                   })}
                 </div>
@@ -387,86 +393,27 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Other staff involved — default selections */}
-        <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-ink">
-            Other staff involved
-          </label>
-          <p className="mb-2.5 text-xs text-muted">
-            Pick the people you usually do outreach with. They’ll be
-            pre-selected on every new entry and can be changed per entry. Names
-            come from column I of the sheet.
-          </p>
-
-          {loading ? (
-            <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
-          ) : (lists?.staff?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted">
-              No staff names found in column I of the sheet.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {(lists?.staff ?? []).map((n) => {
-                const checked = staffDefault.includes(n);
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={checked}
-                    onClick={() => toggleStaffDefault(n)}
-                    className={[
-                      "flex min-h-[48px] items-center justify-between gap-2 rounded-xl border px-3.5 text-left text-sm font-medium transition-colors",
-                      checked
-                        ? "border-brand-primary bg-brand-primary/10 text-brand-secondary"
-                        : "border-line bg-field text-muted hover:bg-white",
-                    ].join(" ")}
-                  >
-                    <span className="leading-tight">{n}</span>
-                    {checked && (
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 16 16"
-                        aria-hidden="true"
-                        className="shrink-0"
-                      >
-                        <path
-                          d="M3 8.5l3.5 3.5L13 5"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2">
+        {/* Save/Clear Buttons */}
+        <div className="flex gap-2 pt-2">
           <button
             type="button"
             onClick={save}
             disabled={loading}
-            className="flex min-h-[52px] flex-1 items-center justify-center rounded-xl bg-brand-primary text-[17px] font-semibold text-white transition-opacity disabled:opacity-60"
+            className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-brand-primary text-base font-semibold text-white transition-opacity disabled:opacity-60"
           >
             Save defaults
           </button>
           <button
             type="button"
             onClick={clearAll}
-            className="min-h-[52px] shrink-0 rounded-xl border border-line bg-white px-4 font-medium text-muted hover:bg-field"
+            className="min-h-[48px] shrink-0 rounded-xl border border-line bg-white px-4 text-sm font-medium text-muted hover:bg-field"
           >
             Clear
           </button>
         </div>
 
         {saved && (
-          <p className="mt-3 text-center text-sm font-medium text-brand-success">
+          <p className="mt-2 text-center text-xs font-medium text-brand-success">
             Saved on this device.
           </p>
         )}
@@ -494,7 +441,7 @@ function Select({
       value={value}
       disabled={loading}
       onChange={(e) => onChange(e.target.value)}
-      className="min-h-[48px] w-full appearance-none rounded-xl border border-line bg-field px-3.5 text-ink disabled:opacity-60"
+      className="min-h-[44px] w-full appearance-none rounded-xl border border-line bg-field px-3 text-sm text-ink disabled:opacity-60"
       style={{
         backgroundImage:
           "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' stroke='%235b6478' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
