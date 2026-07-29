@@ -296,8 +296,8 @@ export default function SettingsPage() {
                 SAFER Compliance
               </label>
               <p className="mt-1 text-xs text-muted">
-                Turn on for projects that track SAFER. Off hides the field from
-                the form entirely.
+                Turn on for projects that SAFER tracks for compliance. Off hides
+                the field from the form entirely.
               </p>
             </div>
             <button
@@ -322,11 +322,6 @@ export default function SettingsPage() {
 
           {saferEnabled && (
             <div className="mt-3">
-              <p className="mb-2.5 text-xs text-muted">
-                Choose which categories staff can tag on an entry. Categories
-                come from column G of the sheet.
-              </p>
-
               {loading ? (
                 <div className="h-[48px] animate-pulse rounded-xl border border-line bg-field" />
               ) : (lists?.saferCategories?.length ?? 0) === 0 ? (
