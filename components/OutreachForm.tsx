@@ -17,6 +17,7 @@ import {
   ChevronUp,
   Calendar,
   Check,
+  Pencil,
   type LucideIcon,
 } from "lucide-react";
 
@@ -595,39 +596,42 @@ function SessionStrip({
   return (
     <div
       className={[
-        "rounded-xl border p-4 transition-all",
+        "rounded-xl border transition-all",
+        open ? "p-4" : "p-3",
         stale
           ? "border-amber-300 bg-amber-50"
           : "border-blue-100 bg-blue-50/60",
       ].join(" ")}
     >
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onToggle}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="-m-1.5 flex w-full items-center justify-between gap-2 rounded-lg p-1.5 active:bg-white/50"
+      >
+        <span
           className={[
-            "flex items-center gap-1.5 text-sm font-semibold hover:text-brand-primary",
+            "flex items-center gap-1.5 text-sm font-semibold",
             stale ? "text-amber-700" : "text-brand-secondary",
           ].join(" ")}
         >
-          <span>{stale ? "Outreach context (stale)" : "Session Context"}</span>
+          {stale ? "Outreach Details (please recheck)" : "Outreach Details"}
           {open ? (
             <ChevronUp className="h-4 w-4" />
           ) : (
             <ChevronDown className="h-4 w-4" />
           )}
-        </button>
+        </span>
 
         {!open && (
-          <button
-            type="button"
-            onClick={onToggle}
-            className="text-xs font-medium text-brand-secondary hover:underline"
+          <span
+            aria-hidden="true"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand-secondary"
           >
-            Edit context
-          </button>
+            <Pencil className="h-3.5 w-3.5" />
+          </span>
         )}
-      </div>
+      </button>
 
       {open ? (
         <div className="mt-3.5 space-y-4">
@@ -746,27 +750,50 @@ function SessionStrip({
                 <button
                   type="button"
                   onClick={onDone}
-                  className="min-h-[38px] rounded-xl bg-brand-primary text-xs font-semibold text-white"
+                  className="flex min-h-[38px] items-center justify-center gap-1.5 rounded-xl bg-brand-primary text-xs font-semibold text-white"
                 >
                   Update
+                  <Check className="h-3.5 w-3.5" />
                 </button>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={onDone}
-                className="w-full rounded-xl border border-blue-200/80 bg-white/80 py-2 text-xs font-semibold text-brand-secondary transition-colors hover:bg-white"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-blue-200/80 bg-white/80 py-2 text-xs font-semibold text-brand-secondary transition-colors hover:bg-white"
               >
-                Done (Minimize context)
+                Done
+                <Check className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
         </div>
+      ) : goal || campaign || teamSummary ? (
+        <div className="mt-1.5 space-y-1.5">
+          <p className="truncate text-xs text-slate-500">
+            {goal || "No goal set yet"}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {campaign && (
+              <span className="inline-flex max-w-full items-center truncate rounded-full border border-brand-primary/25 bg-white px-2 py-0.5 text-[11px] font-medium text-brand-secondary">
+                {campaign}
+              </span>
+            )}
+            {teamSummary && (
+              <span className="truncate text-[11px] text-slate-500">
+                {teamSummary}
+              </span>
+            )}
+            {!campaign && !teamSummary && (
+              <span className="text-[11px] text-slate-400">
+                No campaign or lead set
+              </span>
+            )}
+          </div>
+        </div>
       ) : (
-        <p className="mt-1 truncate text-xs text-slate-500">
-          {goal || "No goal set"} •{" "}
-          {[campaign, teamSummary].filter(Boolean).join(" · ") ||
-            "Tap to set session context"}
+        <p className="mt-1.5 truncate text-xs text-slate-500">
+          Tap to set outreach details
         </p>
       )}
     </div>
